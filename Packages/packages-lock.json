@@ -10,7 +10,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.29",
+      "version": "1.8.30",
       "depth": 2,
       "source": "registry",
       "dependencies": {
@@ -20,11 +20,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.collab-proxy": {
-      "version": "2.13.3",
+      "version": "2.13.5",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.collections": "2.6.2"
+        "com.unity.collections": "2.6.8"
       },
       "url": "https://packages.unity.com"
     },
@@ -138,6 +138,16 @@
         "com.unity.searcher": "4.9.3"
       }
     },
+    "com.unity.terrain-tools": {
+      "version": "5.3.2",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.terrain": "1.0.0",
+        "com.unity.modules.terrainphysics": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.test-framework": {
       "version": "1.7.0",
       "depth": 0,
@@ -183,11 +193,11 @@
       }
     },
     "com.unity.visualscripting": {
-      "version": "1.9.11",
+      "version": "1.9.12",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.ugui": "1.0.0",
+        "com.unity.ugui": "2.0.0",
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
