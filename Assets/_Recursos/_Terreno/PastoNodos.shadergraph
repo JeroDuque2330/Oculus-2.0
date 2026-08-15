@@ -2839,7 +2839,7 @@
     "m_AlphaMode": 0,
     "m_RenderFace": 0,
     "m_AlphaClip": true,
-    "m_CastShadows": true,
+    "m_CastShadows": false,
     "m_ReceiveShadows": true,
     "m_DisableTint": false,
     "m_Sort3DAs2DCompatible": false,
@@ -2928,8 +2928,8 @@
     "m_ObjectId": "b37065b9d4bc42c7ad8b87cdc03a5c47",
     "m_Title": "Depth",
     "m_Position": {
-        "x": -1428.7999267578125,
-        "y": -131.99998474121095
+        "x": -1428.8001708984375,
+        "y": -132.0
     }
 }
 
@@ -3280,7 +3280,7 @@
     "m_Title": "HighBlend",
     "m_Position": {
         "x": -1368.0001220703125,
-        "y": 345.60003662109377
+        "y": 345.6000671386719
     }
 }
 
