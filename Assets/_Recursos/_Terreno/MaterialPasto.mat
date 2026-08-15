@@ -72,6 +72,14 @@ Material:
         m_Texture: {fileID: 2800000, guid: a73c218e0d8156240a793d22710686d1, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _TexturaPasto:
+        m_Texture: {fileID: 2800000, guid: 3ab525614e685014da4ff51a15e353f9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TexturaViento:
+        m_Texture: {fileID: 2800000, guid: 210965333ba19234c9960d5efe8611ce, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -106,7 +114,9 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
+    - _IntensidadViento: 0.05
     - _Metallic: 0
+    - _NoiseVientoVel: -0.5
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueControl: 0
@@ -118,19 +128,23 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
+    - _VelocidadViento: 0.5
+    - _WindAltura: 5
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 0.5924529, g: 0.3167489, b: 0.07489497, a: 1}
-    - _BottomColor: {r: 0.19245279, g: 0.13403776, b: 0.0068992237, a: 1}
+    - _BottomColor: {r: 0.19245276, g: 0.13403773, b: 0.0068992237, a: 1}
     - _Color: {r: 0.5622641, g: 0.39324495, b: 0.14746167, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FarColor: {r: 0.93207544, g: 0.6837491, b: 0.16707003, a: 1}
     - _NearColor: {r: 0.78113204, g: 0.6017255, b: 0.22844417, a: 1}
+    - _NoiseViento: {r: 30, g: 50, b: 0, a: 0}
     - _Profundidad: {r: 2.73, g: 4.7, b: 0, a: 0}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _TopColor: {r: 0.87843144, g: 0.63529414, b: 0.12941177, a: 1}
+    - _WindNoiseContrast: {r: 0.5, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &6301780382412217496
