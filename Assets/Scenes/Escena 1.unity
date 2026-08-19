@@ -895,10 +895,10 @@ MonoBehaviour:
   m_RendererIndex: -1
   m_VolumeLayerMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 4294967295
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
+  m_RenderPostProcessing: 1
   m_Antialiasing: 0
   m_AntialiasingQuality: 2
   m_StopNaN: 0
@@ -1063,17 +1063,17 @@ MonoBehaviour:
   jugadorVR: {fileID: 510027637}
   npcPrefab: {fileID: 853666668}
   volumeAmbiente: {fileID: 832575518}
-  esperaNormal: 10
-  tiempoEntreSpawns: 0.9
-  multitudInicial: 25
-  npcsPorIntervalo: 2
-  cercaniaAlJugador: 0.8
+  audioVidrioRoto: {fileID: 0}
+  audioZumbido: {fileID: 0}
+  filtroAmbiente: {fileID: 0}
   distanciaSpawn: 16
+  cercaniaAlJugador: 0.8
   velocidadMin: 0.7
   velocidadMax: 0.9
-  duracionTransicionRojo: 6
+  tiempoEntreSpawns: 0.9
+  multitudInicial: 25
   colorRojoFinal: {r: 1, g: 0.5411765, b: 0.5411765, a: 1}
-  intensidadVignette: 0.35
+  nombreEscena2: Escena 3
 --- !u!4 &820778042
 Transform:
   m_ObjectHideFlags: 0
