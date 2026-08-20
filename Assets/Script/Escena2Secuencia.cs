@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
@@ -49,13 +49,15 @@ public class Escena2Secuencia : MonoBehaviour
             sombrasEnEscena.AddRange(FindObjectsByType<SombraAnimador>(FindObjectsSortMode.None));
         }
 
-        // Configurar el Timer VR para 90 segundos (1:30 min)
+        // Configurar el Timer VR para 90 segundos (1:30 min) oculto en el visor
         TimerVR timer = FindFirstObjectByType<TimerVR>();
         if (timer == null)
         {
             timer = gameObject.AddComponent<TimerVR>();
-            timer.tiempoTotalSegundos = 90.0f;
         }
+        timer.tiempoTotalSegundos = 90.0f;
+        timer.mostrarHUD = false;
+        timer.OcultarHUD();
 
         // Obtener componentes de Post-Processing
         if (volumeAmbiente != null && volumeAmbiente.profile != null)
@@ -161,7 +163,6 @@ public class Escena2Secuencia : MonoBehaviour
             if (vignette != null)
             {
                 vignette.color.value = Color.black;
-                // Efecto de parpadeo senoidal que se intensifica hacia el final
                 float parpadeo = Mathf.Abs(Mathf.Sin(tFase4 * 2.5f)) * 0.7f + (factorFinal * 0.35f);
                 vignette.intensity.value = Mathf.Clamp01(parpadeo);
             }

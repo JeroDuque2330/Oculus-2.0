@@ -80,13 +80,15 @@ public class Escena3Secuencia : MonoBehaviour
         // Ocultar charco visualmente al inicio sin matar este script
         EstablecerVisibilidadCharco(false);
 
-        // Configurar el Timer VR con el tiempo total especificado
+        // Configurar el Timer VR con el tiempo total especificado y OCULTO
         TimerVR timer = FindFirstObjectByType<TimerVR>();
         if (timer == null)
         {
             timer = gameObject.AddComponent<TimerVR>();
         }
         timer.tiempoTotalSegundos = tiempoTotalEscena;
+        timer.mostrarHUD = false;
+        timer.OcultarHUD();
 
         if (volumeAmbiente != null && volumeAmbiente.profile != null)
         {

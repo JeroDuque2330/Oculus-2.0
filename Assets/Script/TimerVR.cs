@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -8,8 +8,8 @@ public class TimerVR : MonoBehaviour
     [Tooltip("Tiempo total en segundos para la cuenta regresiva de esta escena")]
     public float tiempoTotalSegundos = 60.0f;
 
-    [Tooltip("Mostrar el temporizador visualmente en el casco")]
-    public bool mostrarHUD = true;
+    [Tooltip("Mostrar el temporizador visualmente en el casco (Desactivado para ocultar en todas las escenas)")]
+    public bool mostrarHUD = false;
 
     [Header("Posición frente al visor VR")]
     [Tooltip("Distancia hacia adelante desde la cámara")]
@@ -39,9 +39,16 @@ public class TimerVR : MonoBehaviour
             camaraVR = Camera.main.transform;
         }
 
-        if (mostrarHUD && textoTiempoTMP == null && textoTiempoUI == null)
+        if (mostrarHUD)
         {
-            ConstruirHUDAutomatico();
+            if (textoTiempoTMP == null && textoTiempoUI == null)
+            {
+                ConstruirHUDAutomatico();
+            }
+        }
+        else
+        {
+            OcultarHUD();
         }
     }
 
@@ -52,7 +59,7 @@ public class TimerVR : MonoBehaviour
             camaraVR = Camera.main.transform;
         }
 
-        // Cuenta regresiva
+        // Cuenta regresiva interna
         if (tiempoRestante > 0f)
         {
             tiempoRestante -= Time.deltaTime;
@@ -63,8 +70,33 @@ public class TimerVR : MonoBehaviour
             }
         }
 
-        ActualizarTexto();
-        ActualizarPosicionHUD();
+        if (mostrarHUD)
+        {
+            ActualizarTexto();
+            ActualizarPosicionHUD();
+        }
+    }
+
+    public void OcultarHUD()
+    {
+        mostrarHUD = false;
+        if (hudCanvasObj != null)
+        {
+            hudCanvasObj.SetActive(false);
+        }
+        if (textoTiempoTMP != null)
+        {
+            textoTiempoTMP.gameObject.SetActive(false);
+        }
+        if (textoTiempoUI != null)
+        {
+            textoTiempoUI.gameObject.SetActive(false);
+        }
+        GameObject existingHUD = GameObject.Find("HUD_Timer_VR");
+        if (existingHUD != null)
+        {
+            existingHUD.SetActive(false);
+        }
     }
 
     private void ActualizarTexto()
@@ -87,7 +119,6 @@ public class TimerVR : MonoBehaviour
     {
         if (hudCanvasObj == null || camaraVR == null) return;
 
-        // Mantener el HUD frente a la cámara con suavizado
         Vector3 posicionDeseada = camaraVR.position + (camaraVR.forward * distanciaFrente) + (camaraVR.up * alturaOffset);
         hudCanvasObj.transform.position = Vector3.Lerp(hudCanvasObj.transform.position, posicionDeseada, Time.deltaTime * 10f);
         hudCanvasObj.transform.rotation = Quaternion.Slerp(hudCanvasObj.transform.rotation, Quaternion.LookRotation(hudCanvasObj.transform.position - camaraVR.position), Time.deltaTime * 10f);
