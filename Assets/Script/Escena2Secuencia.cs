@@ -1,8 +1,8 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Escena2Secuencia : MonoBehaviour
 {
@@ -32,8 +32,8 @@ public class Escena2Secuencia : MonoBehaviour
     [Tooltip("Posición en el suelo donde emergerán las manos. Si está vacío, se coloca automáticamente en el suelo bajo el jugador")]
     public Transform puntoSpawnCharco;
 
-    [Tooltip("Nombre del parámetro Trigger o Estado en el Animator del Charco (Dejar vacío si se reproduce por defecto)")]
-    public string parametroTriggerAnimator = "";
+    [Tooltip("Controlador de animación para el charco")]
+    public RuntimeAnimatorController controladorCharco;
 
     [Tooltip("Profundidad en metros a la que el jugador se hundirá en el suelo")]
     public float profundidadHundimiento = 3.0f;
@@ -65,11 +65,14 @@ public class Escena2Secuencia : MonoBehaviour
     private FilmGrain filmGrain;
     private Renderer[] renderersCharco;
     private Animator animatorCharco;
-    private Image blackoutImage;
+    private Material materialBlackout;
+    private GameObject quadBlackout;
+    private List<Transform> huesosManos = new List<Transform>();
+    private List<Quaternion> rotacionesOriginalesHuesos = new List<Quaternion>();
+    private bool animarManosProcedural = false;
 
     void Awake()
     {
-        // Evitar ejecuciones duplicadas si el script está en más de un objeto en la escena
         if (instance != null && instance != this)
         {
             Destroy(this);
@@ -77,7 +80,6 @@ public class Escena2Secuencia : MonoBehaviour
         }
         instance = this;
 
-        // FORZAR SIEMPRE 60 SEGUNDOS Y 20 DE CHARCO
         tiempoTotalEscena = 60.0f;
         duracionFaseCharco = 20.0f;
     }
@@ -115,14 +117,44 @@ public class Escena2Secuencia : MonoBehaviour
             charcoObjeto = foundCharco ?? this.gameObject;
         }
 
-        // Obtener renderers y animator para ocultar el charco al inicio
-        renderersCharco = charcoObjeto.GetComponentsInChildren<Renderer>(true);
-        animatorCharco = charcoObjeto.GetComponentInChildren<Animator>(true);
+        // Preparar charco, animator y huesos
+        if (charcoObjeto != null)
+        {
+            renderersCharco = charcoObjeto.GetComponentsInChildren<Renderer>(true);
+            animatorCharco = charcoObjeto.GetComponentInChildren<Animator>(true);
+            if (animatorCharco == null)
+            {
+                animatorCharco = charcoObjeto.AddComponent<Animator>();
+            }
+
+            // Asignar el Charco_Controller si no tiene uno
+            if (controladorCharco == null)
+            {
+                controladorCharco = Resources.Load<RuntimeAnimatorController>("Charco_Controller");
+            }
+            if (controladorCharco != null && animatorCharco != null)
+            {
+                animatorCharco.runtimeAnimatorController = controladorCharco;
+            }
+
+            // Registrar todos los huesos / partes de las manos para movimiento continuo y gesticulación
+            huesosManos.Clear();
+            rotacionesOriginalesHuesos.Clear();
+            Transform[] todosTransforms = charcoObjeto.GetComponentsInChildren<Transform>(true);
+            foreach (var t in todosTransforms)
+            {
+                if (t != charcoObjeto.transform)
+                {
+                    huesosManos.Add(t);
+                    rotacionesOriginalesHuesos.Add(t.localRotation);
+                }
+            }
+        }
 
         EstablecerVisibilidadCharco(false);
 
-        // Crear overlay negro 100% opaco para garantizar oscuridad total
-        CrearBlackoutOverlay();
+        // Crear pantalla negra física de bloqueo (Quad en lente de cámara)
+        CrearBlackoutQuad();
 
         // Configurar TimerVR en 60 segundos y oculto
         TimerVR timer = FindFirstObjectByType<TimerVR>();
@@ -140,44 +172,70 @@ public class Escena2Secuencia : MonoBehaviour
             volumeAmbiente.profile.TryGet(out vignette);
             volumeAmbiente.profile.TryGet(out filmGrain);
 
-            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.white;
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.postExposure.overrideState = true;
+                colorAdjustments.colorFilter.overrideState = true;
+                colorAdjustments.colorFilter.value = Color.white;
+                colorAdjustments.postExposure.value = 0f;
+            }
         }
 
         StartCoroutine(CronologiaEscena2());
     }
 
-    private void CrearBlackoutOverlay()
+    private void CrearBlackoutQuad()
     {
         if (jugadorVR == null) return;
 
-        GameObject overlayObj = new GameObject("VR_Blackout_Overlay");
-        overlayObj.transform.SetParent(jugadorVR, false);
-        overlayObj.transform.localPosition = new Vector3(0, 0, 0.25f);
-        overlayObj.transform.localRotation = Quaternion.identity;
+        quadBlackout = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        quadBlackout.name = "VR_Blackout_Screen";
+        Destroy(quadBlackout.GetComponent<Collider>());
 
-        Canvas canvas = overlayObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.sortingOrder = 9999;
+        quadBlackout.transform.SetParent(jugadorVR, false);
+        quadBlackout.transform.localPosition = new Vector3(0f, 0f, 0.25f);
+        quadBlackout.transform.localRotation = Quaternion.identity;
+        quadBlackout.transform.localScale = new Vector3(3f, 3f, 3f);
 
-        RectTransform rect = overlayObj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(3f, 3f);
+        // Crear material negro absoluto con máxima prioridad de renderizado
+        Shader shaderUnlit = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
+        materialBlackout = new Material(shaderUnlit);
+        materialBlackout.color = new Color(0f, 0f, 0f, 1f);
 
-        GameObject imgObj = new GameObject("BlackImage");
-        imgObj.transform.SetParent(overlayObj.transform, false);
-        blackoutImage = imgObj.AddComponent<Image>();
-        blackoutImage.color = new Color(0f, 0f, 0f, 1f); // Comienza en negro para el fade-in
+        // Configuración de transparencia
+        materialBlackout.SetFloat("_Surface", 1f); // Transparent en URP
+        materialBlackout.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        materialBlackout.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        materialBlackout.SetInt("_ZWrite", 0);
+        materialBlackout.renderQueue = 5000; // Por encima de todo
 
-        RectTransform imgRect = imgObj.GetComponent<RectTransform>();
-        imgRect.anchorMin = Vector2.zero;
-        imgRect.anchorMax = Vector2.one;
-        imgRect.sizeDelta = Vector2.zero;
+        MeshRenderer mr = quadBlackout.GetComponent<MeshRenderer>();
+        mr.material = materialBlackout;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
     }
 
     private void SetBlackoutAlpha(float alpha)
     {
-        if (blackoutImage != null)
+        float a = Mathf.Clamp01(alpha);
+
+        if (materialBlackout != null)
         {
-            blackoutImage.color = new Color(0f, 0f, 0f, Mathf.Clamp01(alpha));
+            materialBlackout.color = new Color(0f, 0f, 0f, a);
+        }
+
+        if (colorAdjustments != null)
+        {
+            colorAdjustments.postExposure.overrideState = true;
+            colorAdjustments.postExposure.value = Mathf.Lerp(0f, -20f, a);
+            colorAdjustments.colorFilter.overrideState = true;
+            colorAdjustments.colorFilter.value = Color.Lerp(Color.white, Color.black, a);
+        }
+
+        if (vignette != null)
+        {
+            vignette.color.value = Color.black;
+            vignette.intensity.value = Mathf.Lerp(0f, 1f, a);
         }
     }
 
@@ -192,14 +250,36 @@ public class Escena2Secuencia : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        // Gesticulación y movimiento sinuoso de las manos al emerger
+        if (animarManosProcedural && huesosManos.Count > 0)
+        {
+            float tiempo = Time.time * 4.5f;
+            for (int i = 0; i < huesosManos.Count; i++)
+            {
+                Transform h = huesosManos[i];
+                if (h != null)
+                {
+                    float desfase = i * 0.4f;
+                    float rotacionX = Mathf.Sin(tiempo + desfase) * 12f;
+                    float rotacionZ = Mathf.Cos(tiempo + desfase * 1.3f) * 10f;
+                    float rotacionY = Mathf.Sin(tiempo * 0.7f + desfase) * 8f;
+
+                    h.localRotation = rotacionesOriginalesHuesos[i] * Quaternion.Euler(rotacionX, rotacionY, rotacionZ);
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // CRONOLOGÍA EXACTA ESCENA 2 (Total: 60 seg / 1:00 min)
     // 
     // 1. (0s - 10s): Levantarse (Fade-in suave desde negro y elevación de cámara).
     // 2. (10s - 40s): Exploración, estática y música ambiental creciente en la niebla.
-    // 3. (40s - 60s): ¡CLÍMAX! Surgen las manos, la cámara mira hacia abajo,
-    //                 empieza a temblar, es arrastrado hacia abajo y la pantalla
-    //                 se va tornando negra del todo.
+    // 3. (40s - 60s): ¡CLÍMAX! Surgen las manos en el suelo a los pies del jugador,
+    //                 se mueven vivas, la cámara mira abajo, tiembla, se hunde
+    //                 y la pantalla se torna 100% negra en Game View y VR.
     // 4. (60s): Oscuridad 100% total y fin de la experiencia.
     // =========================================================================
     IEnumerator CronologiaEscena2()
@@ -262,16 +342,11 @@ public class Escena2Secuencia : MonoBehaviour
                 audioMusicaEstatica.volume = Mathf.Lerp(0.15f, 0.85f, factorFase2);
             }
 
-            if (vignette != null)
-            {
-                vignette.intensity.value = Mathf.Lerp(0f, 0.35f, factorFase2);
-            }
-
             yield return null;
         }
 
         // ---------------------------------------------------------------------
-        // FASE 3 (40s - 60s / 20 seg): LAS MANOS SURGEN, CÁMARA MIRA ABAJO,
+        // FASE 3 (40s - 60s / 20 seg): LAS MANOS SURGEN EN EL SUELO, CÁMARA MIRA ABAJO,
         // TIEMBLA, ES ARRASTRADO HACIA ABAJO Y PANTALLA SE TORNA NEGRA DEL TODO
         // ---------------------------------------------------------------------
         yield return StartCoroutine(EjecutarFaseCharcoYConsumo());
@@ -279,20 +354,15 @@ public class Escena2Secuencia : MonoBehaviour
 
     IEnumerator EjecutarFaseCharcoYConsumo()
     {
-        // 1. Posicionar el charco exactamente en el suelo visible bajo los pies del jugador
+        // 1. Calcular la altura REAL del suelo en la posición del jugador
         if (charcoObjeto != null)
         {
-            Vector3 posSuelo = (xrOriginTransform != null) ? xrOriginTransform.position : jugadorVR.position;
-            
-            // Detectar el suelo real con Raycast para no quedar bajo tierra
-            RaycastHit hit;
-            if (Physics.Raycast(jugadorVR.position + Vector3.up * 1f, Vector3.down, out hit, 50f))
+            float alturaSuelo = (xrOriginTransform != null) ? xrOriginTransform.position.y : (jugadorVR.position.y - 1.4f);
+
+            Terrain terreno = Terrain.activeTerrain ?? FindFirstObjectByType<Terrain>();
+            if (terreno != null)
             {
-                posSuelo = hit.point;
-            }
-            else if (xrOriginTransform != null)
-            {
-                posSuelo = new Vector3(jugadorVR.position.x, xrOriginTransform.position.y, jugadorVR.position.z);
+                alturaSuelo = terreno.SampleHeight(jugadorVR.position) + terreno.transform.position.y;
             }
 
             Vector3 dirMirada = Vector3.ProjectOnPlane(jugadorVR.forward, Vector3.up).normalized;
@@ -305,41 +375,33 @@ public class Escena2Secuencia : MonoBehaviour
             }
             else
             {
-                // Colocar el charco directamente frente a los pies en el suelo visible
-                charcoObjeto.transform.position = posSuelo + (dirMirada * 0.55f) + new Vector3(0f, 0.05f, 0f);
+                // Colocar el charco en el suelo justo a los pies del jugador
+                Vector3 posCharco = new Vector3(jugadorVR.position.x, alturaSuelo, jugadorVR.position.z) + (dirMirada * 0.45f);
+                charcoObjeto.transform.position = posCharco;
                 charcoObjeto.transform.rotation = Quaternion.LookRotation(dirMirada);
-                charcoObjeto.transform.localScale = Vector3.one * 1.5f; // Escala visible
+                charcoObjeto.transform.localScale = Vector3.one * 1.2f;
             }
 
             // Hacer visible el charco
             EstablecerVisibilidadCharco(true);
 
-            // Iniciar animación de las manos emergiendo
-            if (animatorCharco == null && charcoObjeto != null)
-            {
-                animatorCharco = charcoObjeto.GetComponentInChildren<Animator>(true);
-            }
+            // Activar movimiento y animación de las manos
+            animarManosProcedural = true;
 
             if (animatorCharco != null)
             {
                 animatorCharco.enabled = true;
-                if (!string.IsNullOrEmpty(parametroTriggerAnimator))
-                {
-                    animatorCharco.SetTrigger(parametroTriggerAnimator);
-                }
-                else
+                if (animatorCharco.runtimeAnimatorController != null)
                 {
                     animatorCharco.Play(0, -1, 0f);
                 }
             }
-            else
+
+            Animation legacyAnim = charcoObjeto.GetComponentInChildren<Animation>(true);
+            if (legacyAnim != null)
             {
-                Animation legacyAnim = charcoObjeto.GetComponentInChildren<Animation>(true);
-                if (legacyAnim != null)
-                {
-                    legacyAnim.enabled = true;
-                    legacyAnim.Play();
-                }
+                legacyAnim.enabled = true;
+                legacyAnim.Play();
             }
         }
 
@@ -374,26 +436,19 @@ public class Escena2Secuencia : MonoBehaviour
                 Vector3 posDescenso = posInicialArrastre - new Vector3(0f, progresoHundimiento * profundidadHundimiento, 0f);
                 xrOriginTransform.position = posDescenso + new Vector3(temblorPosX, temblorPosY, temblorPosZ);
 
-                // B) LA CÁMARA MIRA HACIA ABAJO (Inclinación forzada hacia las manos y el suelo)
-                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 1.8f));
+                // B) LA CÁMARA MIRA HACIA ABAJO (Inclinación forzada hacia las manos en el suelo)
+                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 2.0f));
                 xrOriginTransform.localRotation = Quaternion.Euler(inclinacionX + temblorRotX, rotInicialY, temblorRotZ);
             }
 
-            // Para pruebas en Editor / no VR, inclinar también la cámara si es objeto directo
             if (xrOriginTransform == jugadorVR && jugadorVR != null)
             {
-                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 1.8f));
+                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 2.0f));
                 jugadorVR.localRotation = Quaternion.Euler(inclinacionX + temblorRotX, jugadorVR.localEulerAngles.y, temblorRotZ);
             }
 
-            // C) LA PANTALLA SE VA TORNANDO NEGRA DEL TODO (Overlay + PostProcessing)
+            // C) LA PANTALLA SE VA TORNANDO NEGRA DEL TODO EN LA CÁMARA GAME
             SetBlackoutAlpha(factor);
-
-            if (vignette != null)
-            {
-                vignette.color.value = Color.black;
-                vignette.intensity.value = Mathf.Lerp(0.2f, 1.0f, factor);
-            }
 
             yield return null;
         }
