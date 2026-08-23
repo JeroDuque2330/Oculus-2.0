@@ -1114,18 +1114,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 820778040}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05e5992be3059da4e90e77638c1c0602, type: 3}
+  m_Script: {fileID: 11500000, guid: 9dbaadcd0c0e7ff46b2e951fd2144517, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Escena3Secuencia
+  m_EditorClassIdentifier: Assembly-CSharp::Escena2Secuencia
   jugadorVR: {fileID: 510027637}
   xrOriginTransform: {fileID: 52633089}
   volumeAmbiente: {fileID: 832575518}
-  tiempoTotalEscena: 150
+  tiempoTotalEscena: 60
   duracionFaseCharco: 20
-  charcoObjeto: {fileID: 0}
+  charcoObjeto: {fileID: 1241893882}
   puntoSpawnCharco: {fileID: 0}
   parametroTriggerAnimator: 
-  profundidadHundimiento: 2.2
+  profundidadHundimiento: 2.8
   aplicarTemblorCamara: 1
   audioMusicaEstatica: {fileID: 0}
   audioManosCharco: {fileID: 0}
@@ -1543,18 +1543,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1241893882}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05e5992be3059da4e90e77638c1c0602, type: 3}
+  m_Script: {fileID: 11500000, guid: 9dbaadcd0c0e7ff46b2e951fd2144517, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Escena3Secuencia
+  m_EditorClassIdentifier: Assembly-CSharp::Escena2Secuencia
   jugadorVR: {fileID: 510027637}
   xrOriginTransform: {fileID: 52633089}
   volumeAmbiente: {fileID: 832575518}
-  tiempoTotalEscena: 150
+  tiempoTotalEscena: 60
   duracionFaseCharco: 20
-  charcoObjeto: {fileID: 0}
+  charcoObjeto: {fileID: 1241893882}
   puntoSpawnCharco: {fileID: 0}
   parametroTriggerAnimator: 
-  profundidadHundimiento: 2.2
+  profundidadHundimiento: 2.8
   aplicarTemblorCamara: 1
   audioMusicaEstatica: {fileID: 0}
   audioManosCharco: {fileID: 0}
