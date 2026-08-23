@@ -182,7 +182,7 @@ Transform:
   m_GameObject: {fileID: 52633086}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 95.83837, y: 12.535489, z: -86.6}
+  m_LocalPosition: {x: 95.83837, y: 11.07, z: -86.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1114,16 +1114,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 820778040}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9dbaadcd0c0e7ff46b2e951fd2144517, type: 3}
+  m_Script: {fileID: 11500000, guid: 05e5992be3059da4e90e77638c1c0602, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Escena2Secuencia
+  m_EditorClassIdentifier: Assembly-CSharp::Escena3Secuencia
   jugadorVR: {fileID: 510027637}
+  xrOriginTransform: {fileID: 52633089}
   volumeAmbiente: {fileID: 832575518}
-  sombrasEnEscena: []
-  audioVidrioRoto: {fileID: 0}
-  audioGritosReganos: {fileID: 0}
-  audioAngustiaLatidos: {fileID: 0}
-  nombreEscena3: Escena 3
+  tiempoTotalEscena: 150
+  duracionFaseCharco: 20
+  charcoObjeto: {fileID: 0}
+  puntoSpawnCharco: {fileID: 0}
+  parametroTriggerAnimator: 
+  profundidadHundimiento: 2.2
+  aplicarTemblorCamara: 1
+  audioMusicaEstatica: {fileID: 0}
+  audioManosCharco: {fileID: 0}
+  nieblaEspesa: {fileID: 0}
+  probarFaseCharcoDeInmediato: 0
 --- !u!4 &820778042
 Transform:
   m_ObjectHideFlags: 0
@@ -1462,6 +1469,97 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c4cc3cc9ac499864f882426702a19b05, type: 3}
+--- !u!1001 &1133505199
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 89.55481
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 6.68
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -87.34
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      propertyPath: m_Name
+      value: charco
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1241893883}
+  m_SourcePrefab: {fileID: 100100000, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+--- !u!1 &1241893882 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+  m_PrefabInstance: {fileID: 1133505199}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1241893883
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1241893882}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05e5992be3059da4e90e77638c1c0602, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Escena3Secuencia
+  jugadorVR: {fileID: 510027637}
+  xrOriginTransform: {fileID: 52633089}
+  volumeAmbiente: {fileID: 832575518}
+  tiempoTotalEscena: 150
+  duracionFaseCharco: 20
+  charcoObjeto: {fileID: 0}
+  puntoSpawnCharco: {fileID: 0}
+  parametroTriggerAnimator: 
+  profundidadHundimiento: 2.2
+  aplicarTemblorCamara: 1
+  audioMusicaEstatica: {fileID: 0}
+  audioManosCharco: {fileID: 0}
+  nieblaEspesa: {fileID: 0}
+  probarFaseCharcoDeInmediato: 0
 --- !u!1001 &1247162111
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1955,8 +2053,8 @@ Transform:
   m_GameObject: {fileID: 1814843477}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 43.7, y: 8.6, z: -109.9}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 43.7, y: 8.6, z: -121.71}
+  m_LocalScale: {x: 1, y: 1, z: 1.2362}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -2234,3 +2332,4 @@ SceneRoots:
   - {fileID: 1814843480}
   - {fileID: 1834000637}
   - {fileID: 1895240271}
+  - {fileID: 1133505199}
