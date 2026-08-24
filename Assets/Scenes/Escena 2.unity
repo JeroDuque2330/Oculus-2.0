@@ -1121,12 +1121,10 @@ MonoBehaviour:
   xrOriginTransform: {fileID: 52633089}
   volumeAmbiente: {fileID: 832575518}
   tiempoTotalEscena: 60
-  duracionFaseCharco: 20
   charcoObjeto: {fileID: 1241893882}
   puntoSpawnCharco: {fileID: 0}
-  parametroTriggerAnimator: 
   profundidadHundimiento: 2.8
-  aplicarTemblorCamara: 1
+  anguloMirarAbajo: 70
   audioMusicaEstatica: {fileID: 0}
   audioManosCharco: {fileID: 0}
   nieblaEspesa: {fileID: 0}
@@ -1522,7 +1520,9 @@ PrefabInstance:
       value: charco
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 959781487872494922, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: 3308488995353308482, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
@@ -1550,12 +1550,10 @@ MonoBehaviour:
   xrOriginTransform: {fileID: 52633089}
   volumeAmbiente: {fileID: 832575518}
   tiempoTotalEscena: 60
-  duracionFaseCharco: 20
   charcoObjeto: {fileID: 1241893882}
   puntoSpawnCharco: {fileID: 0}
-  parametroTriggerAnimator: 
   profundidadHundimiento: 2.8
-  aplicarTemblorCamara: 1
+  anguloMirarAbajo: 70
   audioMusicaEstatica: {fileID: 0}
   audioManosCharco: {fileID: 0}
   nieblaEspesa: {fileID: 0}
