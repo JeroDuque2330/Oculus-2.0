@@ -58,6 +58,8 @@ public class Escena2Secuencia : MonoBehaviour
     private List<Quaternion> rotacionesOriginales = new List<Quaternion>();
     private bool activarOndulacionTentaculos = false;
 
+    private Light luzDireccional;
+    private float intensidadLuzOriginal = 1f;
     private float alturaSueloReal = 0f;
     private Vector3 posInicialCharcoOculto;
     private Vector3 posFinalCharcoEmergido;
@@ -85,6 +87,23 @@ public class Escena2Secuencia : MonoBehaviour
         {
             if (jugadorVR.parent != null) xrOriginTransform = jugadorVR.parent;
             else xrOriginTransform = jugadorVR;
+        }
+
+        // Asegurar que la cámara tenga Post-Processing ACTIVADO en URP
+        if (jugadorVR != null)
+        {
+            UniversalAdditionalCameraData cameraData = jugadorVR.GetComponent<UniversalAdditionalCameraData>();
+            if (cameraData != null)
+            {
+                cameraData.renderPostProcessing = true;
+            }
+        }
+
+        // Buscar la luz principal para atenuarla durante el oscurecimiento
+        luzDireccional = FindFirstObjectByType<Light>();
+        if (luzDireccional != null)
+        {
+            intensidadLuzOriginal = luzDireccional.intensity;
         }
 
         // Buscar el charco si no fue asignado
@@ -318,7 +337,7 @@ public class Escena2Secuencia : MonoBehaviour
                 jugadorVR.localRotation = Quaternion.Euler(inclinacion + shakeRot, jugadorVR.localEulerAngles.y, shakeRot);
             }
 
-            // E) LA PANTALLA SE VA PONIENDO DE A POQUITO NEGRA (DESDE EL SEGUNDO 30 AL 60)
+            // E) LA PANTALLA SE VA PONIENDO DE A POQUITO NEGRA (PROGRESIVO DESDE EL SEGUNDO 30 AL 60)
             if (colorAdjustments != null)
             {
                 colorAdjustments.colorFilter.overrideState = true;
@@ -339,6 +358,12 @@ public class Escena2Secuencia : MonoBehaviour
                 vignette.smoothness.value = Mathf.Lerp(0.2f, 1.0f, factor);
             }
 
+            // Atenuar también la luz direccional de la escena para acompañar el oscurecimiento
+            if (luzDireccional != null)
+            {
+                luzDireccional.intensity = Mathf.Lerp(intensidadLuzOriginal, 0f, factor);
+            }
+
             yield return null;
         }
 
@@ -348,12 +373,16 @@ public class Escena2Secuencia : MonoBehaviour
         if (colorAdjustments != null)
         {
             colorAdjustments.colorFilter.value = Color.black;
-            colorAdjustments.postExposure.value = -18f;
+            colorAdjustments.postExposure.value = -20f;
         }
         if (vignette != null)
         {
             vignette.intensity.value = 1.0f;
             vignette.smoothness.value = 1.0f;
+        }
+        if (luzDireccional != null)
+        {
+            luzDireccional.intensity = 0f;
         }
 
         if (audioMusicaEstatica != null) audioMusicaEstatica.Stop();
