@@ -30,10 +30,10 @@ public class Escena2Secuencia : MonoBehaviour
     public Transform puntoSpawnCharco;
 
     [Tooltip("Profundidad final a la que el personaje es tragado por la tierra")]
-    public float profundidadHundimiento = 3.5f;
+    public float profundidadHundimiento = 3.2f;
 
     [Tooltip("Ángulo de inclinación hacia abajo para ver el suelo y las manos")]
-    public float anguloMirarAbajo = 68.0f;
+    public float anguloMirarAbajo = 65.0f;
 
     [Header("Audio")]
     [Tooltip("Música y estática ambiental que abruma")]
@@ -222,15 +222,15 @@ public class Escena2Secuencia : MonoBehaviour
     // =========================================================================
     // CRONOLOGÍA EXACTA ESCENA 2 (60 SEGUNDOS)
     // 
-    // 1. (0s - 30s): La escena empieza NORMAL (visión limpia, niebla, exploración).
-    // 2. (30s - 60s): Al segundo 30:
-    //                 - La cámara mira hacia abajo suavemente.
-    //                 - Empieza a temblar la cámara.
-    //                 - Las manos van saliendo suavemente del suelo.
-    //                 - Las manos se mueven como tentáculos.
-    //                 - La pantalla se va poniendo de a poquito negra (progresivo).
-    //                 - El personaje es tragado por la tierra.
-    // 3. (60s): Pantalla en negro total y fin de la experiencia.
+    // 1. (0s - 30s): La escena empieza NORMAL (visión clara y limpia del bosque).
+    // 2. (30s - 45s): Al segundo 30:
+    //                 - La cámara mira hacia abajo suavemente hacia el suelo.
+    //                 - Las manos van saliendo suavemente y se retuercen como tentáculos.
+    //                 - ¡TODO SE VE CON TOTAL CLARIDAD Y LUZ!
+    // 3. (45s - 55s): El personaje empieza a ser arrastrado y tragado por la tierra,
+    //                 y la pantalla se va oscureciendo suavemente de a poco.
+    // 4. (55s - 60s): El personaje termina de hundirse bajo tierra y la pantalla
+    //                 llega al 100% de negro absoluto al segundo 60.
     // =========================================================================
     IEnumerator CronologiaEscena2()
     {
@@ -259,12 +259,7 @@ public class Escena2Secuencia : MonoBehaviour
         }
 
         // ---------------------------------------------------------------------
-        // FASE 2 (30s - 60s / 30 seg): CLÍMAX TOTAL
-        // - Cámara mira hacia abajo
-        // - Temblor de cámara
-        // - Manos emergen suavemente y se retuercen como tentáculos
-        // - La pantalla se va poniendo de a poquito negra progresivamente
-        // - El personaje es tragado por la tierra
+        // FASE 2 (30s - 60s / 30 seg): CLÍMAX GRADUAL Y BIEN VISIBLE
         // ---------------------------------------------------------------------
         if (audioManosCharco != null && !audioManosCharco.isPlaying) audioManosCharco.Play();
 
@@ -303,26 +298,26 @@ public class Escena2Secuencia : MonoBehaviour
             tClimax += Time.deltaTime;
             float factor = Mathf.Clamp01(tClimax / duracionClimax);
 
-            // A) Las manos van saliendo suavemente del suelo (30s - 45s)
-            float factorSalida = Mathf.Clamp01(tClimax / 15.0f);
+            // A) Las manos van saliendo suavemente del suelo durante los primeros 12 segundos (30s - 42s)
+            float factorSalida = Mathf.Clamp01(tClimax / 12.0f);
             float progresoSalida = Mathf.SmoothStep(0f, 1f, factorSalida);
             if (charcoObjeto != null)
             {
                 charcoObjeto.transform.position = Vector3.Lerp(posInicialCharcoOculto, posFinalCharcoEmergido, progresoSalida);
             }
 
-            // B) La cámara mira hacia abajo suavemente hacia las manos en el suelo
-            float factorInclinacion = Mathf.Clamp01(tClimax / 12.0f);
+            // B) La cámara mira hacia abajo suavemente hacia las manos en el suelo (30s - 38s)
+            float factorInclinacion = Mathf.Clamp01(tClimax / 8.0f);
             float inclinacion = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factorInclinacion));
 
             // C) Temblor angustioso que aumenta progresivamente
-            float intensidadTemblor = Mathf.Lerp(0.015f, 0.12f, factor);
+            float intensidadTemblor = Mathf.Lerp(0.012f, 0.11f, factor);
             float shakeX = (Mathf.PerlinNoise(Time.time * 32f, 0f) - 0.5f) * intensidadTemblor;
             float shakeY = (Mathf.PerlinNoise(0f, Time.time * 32f) - 0.5f) * (intensidadTemblor * 0.4f);
             float shakeZ = (Mathf.PerlinNoise(Time.time * 32f, Time.time * 32f) - 0.5f) * intensidadTemblor;
             float shakeRot = (Mathf.PerlinNoise(Time.time * 36f, 10f) - 0.5f) * (intensidadTemblor * 35f);
 
-            // D) El personaje es tragado por la tierra (a partir del segundo 42 al 60)
+            // D) El personaje es arrastrado y tragado por la tierra (visible desde el segundo 42 al 60)
             float factorHundimiento = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
             float curvaHundimiento = Mathf.SmoothStep(0f, 1f, factorHundimiento);
 
@@ -337,14 +332,20 @@ public class Escena2Secuencia : MonoBehaviour
                 jugadorVR.localRotation = Quaternion.Euler(inclinacion + shakeRot, jugadorVR.localEulerAngles.y, shakeRot);
             }
 
-            // E) LA PANTALLA SE VA PONIENDO DE A POQUITO NEGRA (PROGRESIVO DESDE EL SEGUNDO 30 AL 60)
+            // E) OSCURECIMIENTO SUAVE Y MÁS DESPACIO:
+            // - De 30s a 42s (tClimax 0 a 12): 0% negro (totalmente visible para apreciar las manos emergiendo y moviéndose).
+            // - De 42s a 55s (tClimax 12 a 25): Se oscurece suave y lentamente de 0% a 50% para ver cómo el personaje es tragado por la tierra.
+            // - De 55s a 60s (tClimax 25 a 30): Se completa el fundido al 100% de negro absoluto al quedar totalmente bajo tierra.
+            float factorOscurecer = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
+            float curvaOscuridad = Mathf.Pow(factorOscurecer, 1.8f); // Curva suave y retrasada
+
             if (colorAdjustments != null)
             {
                 colorAdjustments.colorFilter.overrideState = true;
-                colorAdjustments.colorFilter.value = Color.Lerp(Color.white, Color.black, factor);
+                colorAdjustments.colorFilter.value = Color.Lerp(Color.white, Color.black, curvaOscuridad);
 
                 colorAdjustments.postExposure.overrideState = true;
-                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -15f, factor);
+                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -14f, curvaOscuridad);
             }
             if (vignette != null)
             {
@@ -352,16 +353,14 @@ public class Escena2Secuencia : MonoBehaviour
                 vignette.color.value = Color.black;
 
                 vignette.intensity.overrideState = true;
-                vignette.intensity.value = Mathf.Lerp(0f, 1.0f, factor);
+                vignette.intensity.value = Mathf.Lerp(0f, 1.0f, curvaOscuridad);
 
                 vignette.smoothness.overrideState = true;
-                vignette.smoothness.value = Mathf.Lerp(0.2f, 1.0f, factor);
+                vignette.smoothness.value = Mathf.Lerp(0.2f, 1.0f, curvaOscuridad);
             }
-
-            // Atenuar también la luz direccional de la escena para acompañar el oscurecimiento
             if (luzDireccional != null)
             {
-                luzDireccional.intensity = Mathf.Lerp(intensidadLuzOriginal, 0f, factor);
+                luzDireccional.intensity = Mathf.Lerp(intensidadLuzOriginal, 0f, curvaOscuridad);
             }
 
             yield return null;
@@ -373,7 +372,7 @@ public class Escena2Secuencia : MonoBehaviour
         if (colorAdjustments != null)
         {
             colorAdjustments.colorFilter.value = Color.black;
-            colorAdjustments.postExposure.value = -20f;
+            colorAdjustments.postExposure.value = -18f;
         }
         if (vignette != null)
         {

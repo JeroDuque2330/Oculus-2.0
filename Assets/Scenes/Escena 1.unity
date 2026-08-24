@@ -182,7 +182,7 @@ Transform:
   m_GameObject: {fileID: 52633086}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.31672323, z: -0, w: -0.948518}
-  m_LocalPosition: {x: 89.648, y: 14.756, z: -75.414}
+  m_LocalPosition: {x: 89.648, y: 14.52, z: -75.414}
   m_LocalScale: {x: 1, y: 1, z: 2.4634}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1070,12 +1070,20 @@ MonoBehaviour:
   audioLatidos: {fileID: 0}
   filtroAmbiente: {fileID: 0}
   distanciaSpawn: 16
-  cercaniaAlJugador: 0.8
-  velocidadMin: 0.7
-  velocidadMax: 0.9
+  radioMinimoCercano: 0.65
+  radioMaximoCercano: 1.15
+  velocidadCaminarMin: 0.75
+  velocidadCaminarMax: 0.95
+  velocidadCorrerMin: 3.4
+  velocidadCorrerMax: 4.2
+  escalaGiganteMin: 1.45
+  escalaGiganteMax: 1.65
   tiempoEntreSpawns: 0.9
   multitudInicial: 25
+  limiteMaximoNPCs: 85
   colorRojoCarmesi: {r: 0.85, g: 0.05, b: 0.05, a: 1}
+  activarEfectoParpados: 1
+  duracionEfectoParpados: 5.5
   nombreEscena2: Escena 2
 --- !u!4 &820778042
 Transform:
