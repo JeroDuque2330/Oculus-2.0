@@ -1,8 +1,8 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Escena2Secuencia : MonoBehaviour
 {
@@ -22,27 +22,18 @@ public class Escena2Secuencia : MonoBehaviour
     [Tooltip("Tiempo total en segundos para la Escena 2")]
     public float tiempoTotalEscena = 60.0f;
 
-    [Tooltip("Duración de la fase final donde el charco consume al jugador (20 segundos: del segundo 40 al 60)")]
-    public float duracionFaseCharco = 20.0f;
-
-    [Header("Charco y Manos (Fase Final: 40s - 60s)")]
+    [Header("Charco y Manos Tentaculares")]
     [Tooltip("GameObject o Prefab del modelo charco.fbx")]
     public GameObject charcoObjeto;
 
-    [Tooltip("Posición en el suelo donde emergerán las manos. Si está vacío, se coloca automáticamente en el suelo bajo el jugador")]
+    [Tooltip("Posición en el suelo donde emergerán las manos (opcional)")]
     public Transform puntoSpawnCharco;
 
-    [Tooltip("Nombre del parámetro Trigger o Estado en el Animator del Charco (Dejar vacío si se reproduce por defecto)")]
-    public string parametroTriggerAnimator = "";
+    [Tooltip("Profundidad final a la que el personaje es tragado por la tierra")]
+    public float profundidadHundimiento = 3.5f;
 
-    [Tooltip("Profundidad en metros a la que el jugador se hundirá en el suelo")]
-    public float profundidadHundimiento = 3.0f;
-
-    [Tooltip("Ángulo de inclinación forzada hacia abajo para mirar el charco")]
-    public float anguloMirarAbajo = 70.0f;
-
-    [Tooltip("Activar temblor angustioso de cámara")]
-    public bool aplicarTemblorCamara = true;
+    [Tooltip("Ángulo de inclinación hacia abajo para ver el suelo y las manos")]
+    public float anguloMirarAbajo = 68.0f;
 
     [Header("Audio")]
     [Tooltip("Música y estática ambiental que abruma")]
@@ -52,24 +43,27 @@ public class Escena2Secuencia : MonoBehaviour
     public AudioSource audioManosCharco;
 
     [Header("Efectos de Niebla / Partículas")]
-    [Tooltip("Partículas o GameObject de la niebla espesa")]
+    [Tooltip("Partículas o GameObject de la niebla")]
     public GameObject nieblaEspesa;
 
     [Header("PRUEBAS / DEBUGER (Para probar en el Editor)")]
-    [Tooltip("¡ACTIVAR PARA PROBAR DE INMEDIATO! Salta directamente a las manos, temblor y hundimiento")]
+    [Tooltip("¡ACTIVAR PARA PROBAR DE INMEDIATO! Salta directamente al segundo 30 al dar Play")]
     public bool probarFaseCharcoDeInmediato = false;
 
-    // Componentes internos y de Post-Processing
+    // Componentes internos de Post-Processing
     private ColorAdjustments colorAdjustments;
     private Vignette vignette;
-    private FilmGrain filmGrain;
     private Renderer[] renderersCharco;
-    private Animator animatorCharco;
-    private Image blackoutImage;
+    private List<Transform> huesosManos = new List<Transform>();
+    private List<Quaternion> rotacionesOriginales = new List<Quaternion>();
+    private bool activarOndulacionTentaculos = false;
+
+    private float alturaSueloReal = 0f;
+    private Vector3 posInicialCharcoOculto;
+    private Vector3 posFinalCharcoEmergido;
 
     void Awake()
     {
-        // Evitar ejecuciones duplicadas si el script está en más de un objeto en la escena
         if (instance != null && instance != this)
         {
             Destroy(this);
@@ -77,9 +71,7 @@ public class Escena2Secuencia : MonoBehaviour
         }
         instance = this;
 
-        // FORZAR SIEMPRE 60 SEGUNDOS Y 20 DE CHARCO
         tiempoTotalEscena = 60.0f;
-        duracionFaseCharco = 20.0f;
     }
 
     void Start()
@@ -95,90 +87,84 @@ public class Escena2Secuencia : MonoBehaviour
             else xrOriginTransform = jugadorVR;
         }
 
-        // Buscar automáticamente el charco si no fue asignado
+        // Buscar el charco si no fue asignado
         if (charcoObjeto == null)
         {
-            GameObject foundCharco = GameObject.Find("charco");
-            if (foundCharco == null) foundCharco = GameObject.Find("charco.fbx");
-            if (foundCharco == null)
+            GameObject found = GameObject.Find("charco") ?? GameObject.Find("charco.fbx");
+            if (found == null)
             {
-                Renderer[] allRenderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
-                foreach (var r in allRenderers)
+                Renderer[] all = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+                foreach (var r in all)
                 {
                     if (r.gameObject.name.ToLower().Contains("charco"))
                     {
-                        foundCharco = r.gameObject;
+                        found = r.gameObject;
                         break;
                     }
                 }
             }
-            charcoObjeto = foundCharco ?? this.gameObject;
+            charcoObjeto = found ?? this.gameObject;
         }
 
-        // Obtener renderers y animator para ocultar el charco al inicio
-        renderersCharco = charcoObjeto.GetComponentsInChildren<Renderer>(true);
-        animatorCharco = charcoObjeto.GetComponentInChildren<Animator>(true);
+        // Registrar huesos para la ondulación tentacular
+        if (charcoObjeto != null)
+        {
+            renderersCharco = charcoObjeto.GetComponentsInChildren<Renderer>(true);
+            huesosManos.Clear();
+            rotacionesOriginales.Clear();
 
+            Transform[] todos = charcoObjeto.GetComponentsInChildren<Transform>(true);
+            foreach (var t in todos)
+            {
+                if (t != charcoObjeto.transform)
+                {
+                    huesosManos.Add(t);
+                    rotacionesOriginales.Add(t.localRotation);
+                }
+            }
+        }
+
+        // Ocultar el charco al inicio
         EstablecerVisibilidadCharco(false);
 
-        // Crear overlay negro 100% opaco para garantizar oscuridad total
-        CrearBlackoutOverlay();
-
-        // Configurar TimerVR en 60 segundos y oculto
-        TimerVR timer = FindFirstObjectByType<TimerVR>();
-        if (timer == null)
+        // Buscar volume si no fue asignado
+        if (volumeAmbiente == null)
         {
-            timer = gameObject.AddComponent<TimerVR>();
+            volumeAmbiente = FindFirstObjectByType<Volume>();
         }
-        timer.tiempoTotalSegundos = 60.0f;
-        timer.mostrarHUD = false;
-        timer.OcultarHUD();
 
+        // Configurar Post-Processing completamente limpio al inicio
         if (volumeAmbiente != null && volumeAmbiente.profile != null)
         {
             volumeAmbiente.profile.TryGet(out colorAdjustments);
             volumeAmbiente.profile.TryGet(out vignette);
-            volumeAmbiente.profile.TryGet(out filmGrain);
 
-            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.white;
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.colorFilter.overrideState = true;
+                colorAdjustments.colorFilter.value = Color.white;
+                colorAdjustments.postExposure.overrideState = true;
+                colorAdjustments.postExposure.value = 0f;
+            }
+            if (vignette != null)
+            {
+                vignette.color.overrideState = true;
+                vignette.color.value = Color.black;
+                vignette.intensity.overrideState = true;
+                vignette.intensity.value = 0f;
+                vignette.smoothness.overrideState = true;
+                vignette.smoothness.value = 0.2f;
+            }
         }
+
+        // Timer oculto
+        TimerVR timer = FindFirstObjectByType<TimerVR>();
+        if (timer == null) timer = gameObject.AddComponent<TimerVR>();
+        timer.tiempoTotalSegundos = 60.0f;
+        timer.mostrarHUD = false;
+        timer.OcultarHUD();
 
         StartCoroutine(CronologiaEscena2());
-    }
-
-    private void CrearBlackoutOverlay()
-    {
-        if (jugadorVR == null) return;
-
-        GameObject overlayObj = new GameObject("VR_Blackout_Overlay");
-        overlayObj.transform.SetParent(jugadorVR, false);
-        overlayObj.transform.localPosition = new Vector3(0, 0, 0.25f);
-        overlayObj.transform.localRotation = Quaternion.identity;
-
-        Canvas canvas = overlayObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.sortingOrder = 9999;
-
-        RectTransform rect = overlayObj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(3f, 3f);
-
-        GameObject imgObj = new GameObject("BlackImage");
-        imgObj.transform.SetParent(overlayObj.transform, false);
-        blackoutImage = imgObj.AddComponent<Image>();
-        blackoutImage.color = new Color(0f, 0f, 0f, 1f); // Comienza en negro para el fade-in
-
-        RectTransform imgRect = imgObj.GetComponent<RectTransform>();
-        imgRect.anchorMin = Vector2.zero;
-        imgRect.anchorMax = Vector2.one;
-        imgRect.sizeDelta = Vector2.zero;
-    }
-
-    private void SetBlackoutAlpha(float alpha)
-    {
-        if (blackoutImage != null)
-        {
-            blackoutImage.color = new Color(0f, 0f, 0f, Mathf.Clamp01(alpha));
-        }
     }
 
     private void EstablecerVisibilidadCharco(bool visible)
@@ -192,220 +178,187 @@ public class Escena2Secuencia : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        // Movimiento sinuoso y ondulante como TENTÁCULOS vivos
+        if (activarOndulacionTentaculos && huesosManos.Count > 0)
+        {
+            float tiempo = Time.time * 3.2f;
+            for (int i = 0; i < huesosManos.Count; i++)
+            {
+                Transform h = huesosManos[i];
+                if (h != null)
+                {
+                    float desfase = i * 0.55f;
+                    float rotX = Mathf.Sin(tiempo + desfase) * 20f;
+                    float rotZ = Mathf.Cos(tiempo * 0.85f + desfase * 1.3f) * 18f;
+                    float rotY = Mathf.Sin(tiempo * 0.6f + desfase * 0.8f) * 14f;
+
+                    h.localRotation = rotacionesOriginales[i] * Quaternion.Euler(rotX, rotY, rotZ);
+                }
+            }
+        }
+    }
+
     // =========================================================================
-    // CRONOLOGÍA EXACTA ESCENA 2 (Total: 60 seg / 1:00 min)
+    // CRONOLOGÍA EXACTA ESCENA 2 (60 SEGUNDOS)
     // 
-    // 1. (0s - 10s): Levantarse (Fade-in suave desde negro y elevación de cámara).
-    // 2. (10s - 40s): Exploración, estática y música ambiental creciente en la niebla.
-    // 3. (40s - 60s): ¡CLÍMAX! Surgen las manos, la cámara mira hacia abajo,
-    //                 empieza a temblar, es arrastrado hacia abajo y la pantalla
-    //                 se va tornando negra del todo.
-    // 4. (60s): Oscuridad 100% total y fin de la experiencia.
+    // 1. (0s - 30s): La escena empieza NORMAL (visión limpia, niebla, exploración).
+    // 2. (30s - 60s): Al segundo 30:
+    //                 - La cámara mira hacia abajo suavemente.
+    //                 - Empieza a temblar la cámara.
+    //                 - Las manos van saliendo suavemente del suelo.
+    //                 - Las manos se mueven como tentáculos.
+    //                 - La pantalla se va poniendo de a poquito negra (progresivo).
+    //                 - El personaje es tragado por la tierra.
+    // 3. (60s): Pantalla en negro total y fin de la experiencia.
     // =========================================================================
     IEnumerator CronologiaEscena2()
     {
-        // MODO PRUEBA: Ir directamente a las manos, temblor y hundimiento
-        if (probarFaseCharcoDeInmediato)
-        {
-            Debug.Log("🧪 MODO PRUEBA ACTIVADO: Iniciando fase de manos y hundimiento de inmediato...");
-            yield return StartCoroutine(EjecutarFaseCharcoYConsumo());
-            yield break;
-        }
-
         // ---------------------------------------------------------------------
-        // FASE 1 (0s - 10s / 10 seg): LEVANTARSE (Fade-in y posición de pie)
-        // ---------------------------------------------------------------------
-        SetBlackoutAlpha(1.0f);
-
-        Vector3 posicionOriginalXR = (xrOriginTransform != null) ? xrOriginTransform.position : Vector3.zero;
-        if (xrOriginTransform != null)
-        {
-            xrOriginTransform.position = posicionOriginalXR - new Vector3(0, 0.7f, 0);
-        }
-
-        float tFase1 = 0f;
-        float duracionFase1 = 10.0f;
-        while (tFase1 < duracionFase1)
-        {
-            tFase1 += Time.deltaTime;
-            float factor = Mathf.Clamp01(tFase1 / duracionFase1);
-
-            // Fade-in a visión clara
-            SetBlackoutAlpha(1.0f - factor);
-
-            if (xrOriginTransform != null)
-            {
-                xrOriginTransform.position = Vector3.Lerp(posicionOriginalXR - new Vector3(0, 0.7f, 0), posicionOriginalXR, factor);
-            }
-
-            yield return null;
-        }
-
-        SetBlackoutAlpha(0.0f);
-
-        // ---------------------------------------------------------------------
-        // FASE 2 (10s - 40s / 30 seg): EXPLORACIÓN, ESTÁTICA Y NIEBLA
+        // FASE 1 (0s - 30s / 30 seg): ESCENA TOTALMENTE NORMAL Y LIMPIA
         // ---------------------------------------------------------------------
         if (audioMusicaEstatica != null && !audioMusicaEstatica.isPlaying) audioMusicaEstatica.Play();
         if (nieblaEspesa != null) nieblaEspesa.SetActive(true);
 
-        float duracionFase2 = 30.0f; // 30 segundos (del segundo 10 al 40)
-        float tFase2 = 0f;
-
-        while (tFase2 < duracionFase2)
+        if (!probarFaseCharcoDeInmediato)
         {
-            tFase2 += Time.deltaTime;
-            float factorFase2 = Mathf.Clamp01(tFase2 / duracionFase2);
-
-            if (audioMusicaEstatica != null)
+            float tFase1 = 0f;
+            while (tFase1 < 30.0f)
             {
-                audioMusicaEstatica.volume = Mathf.Lerp(0.15f, 0.85f, factorFase2);
+                tFase1 += Time.deltaTime;
+                if (audioMusicaEstatica != null)
+                {
+                    audioMusicaEstatica.volume = Mathf.Lerp(0.2f, 0.6f, tFase1 / 30.0f);
+                }
+                yield return null;
             }
-
-            if (vignette != null)
-            {
-                vignette.intensity.value = Mathf.Lerp(0f, 0.35f, factorFase2);
-            }
-
-            yield return null;
+        }
+        else
+        {
+            Debug.Log("🧪 MODO PRUEBA ACTIVADO: Iniciando directamente al segundo 30...");
         }
 
         // ---------------------------------------------------------------------
-        // FASE 3 (40s - 60s / 20 seg): LAS MANOS SURGEN, CÁMARA MIRA ABAJO,
-        // TIEMBLA, ES ARRASTRADO HACIA ABAJO Y PANTALLA SE TORNA NEGRA DEL TODO
+        // FASE 2 (30s - 60s / 30 seg): CLÍMAX TOTAL
+        // - Cámara mira hacia abajo
+        // - Temblor de cámara
+        // - Manos emergen suavemente y se retuercen como tentáculos
+        // - La pantalla se va poniendo de a poquito negra progresivamente
+        // - El personaje es tragado por la tierra
         // ---------------------------------------------------------------------
-        yield return StartCoroutine(EjecutarFaseCharcoYConsumo());
-    }
+        if (audioManosCharco != null && !audioManosCharco.isPlaying) audioManosCharco.Play();
 
-    IEnumerator EjecutarFaseCharcoYConsumo()
-    {
-        // 1. Posicionar el charco exactamente en el suelo visible bajo los pies del jugador
+        // 1. Calcular posición exacta del suelo frente a los pies del jugador
+        alturaSueloReal = (xrOriginTransform != null) ? xrOriginTransform.position.y : (jugadorVR.position.y - 1.4f);
+        Terrain terreno = Terrain.activeTerrain ?? FindFirstObjectByType<Terrain>();
+        if (terreno != null)
+        {
+            alturaSueloReal = terreno.SampleHeight(jugadorVR.position) + terreno.transform.position.y;
+        }
+
+        Vector3 dirMirada = Vector3.ProjectOnPlane(jugadorVR.forward, Vector3.up).normalized;
+        if (dirMirada == Vector3.zero) dirMirada = Vector3.forward;
+
         if (charcoObjeto != null)
         {
-            Vector3 posSuelo = (xrOriginTransform != null) ? xrOriginTransform.position : jugadorVR.position;
-            
-            // Detectar el suelo real con Raycast para no quedar bajo tierra
-            RaycastHit hit;
-            if (Physics.Raycast(jugadorVR.position + Vector3.up * 1f, Vector3.down, out hit, 50f))
-            {
-                posSuelo = hit.point;
-            }
-            else if (xrOriginTransform != null)
-            {
-                posSuelo = new Vector3(jugadorVR.position.x, xrOriginTransform.position.y, jugadorVR.position.z);
-            }
+            posFinalCharcoEmergido = new Vector3(jugadorVR.position.x, alturaSueloReal, jugadorVR.position.z) + (dirMirada * 0.45f);
+            posInicialCharcoOculto = posFinalCharcoEmergido - new Vector3(0f, 1.2f, 0f);
 
-            Vector3 dirMirada = Vector3.ProjectOnPlane(jugadorVR.forward, Vector3.up).normalized;
-            if (dirMirada == Vector3.zero) dirMirada = Vector3.forward;
+            charcoObjeto.transform.position = posInicialCharcoOculto;
+            charcoObjeto.transform.rotation = Quaternion.LookRotation(dirMirada);
+            charcoObjeto.transform.localScale = Vector3.one * 1.15f;
 
-            if (puntoSpawnCharco != null)
-            {
-                charcoObjeto.transform.position = puntoSpawnCharco.position;
-                charcoObjeto.transform.rotation = puntoSpawnCharco.rotation;
-            }
-            else
-            {
-                // Colocar el charco directamente frente a los pies en el suelo visible
-                charcoObjeto.transform.position = posSuelo + (dirMirada * 0.55f) + new Vector3(0f, 0.05f, 0f);
-                charcoObjeto.transform.rotation = Quaternion.LookRotation(dirMirada);
-                charcoObjeto.transform.localScale = Vector3.one * 1.5f; // Escala visible
-            }
-
-            // Hacer visible el charco
             EstablecerVisibilidadCharco(true);
-
-            // Iniciar animación de las manos emergiendo
-            if (animatorCharco == null && charcoObjeto != null)
-            {
-                animatorCharco = charcoObjeto.GetComponentInChildren<Animator>(true);
-            }
-
-            if (animatorCharco != null)
-            {
-                animatorCharco.enabled = true;
-                if (!string.IsNullOrEmpty(parametroTriggerAnimator))
-                {
-                    animatorCharco.SetTrigger(parametroTriggerAnimator);
-                }
-                else
-                {
-                    animatorCharco.Play(0, -1, 0f);
-                }
-            }
-            else
-            {
-                Animation legacyAnim = charcoObjeto.GetComponentInChildren<Animation>(true);
-                if (legacyAnim != null)
-                {
-                    legacyAnim.enabled = true;
-                    legacyAnim.Play();
-                }
-            }
+            activarOndulacionTentaculos = true;
         }
 
-        // Sonido de manos emergiendo y atrapando
-        if (audioManosCharco != null) audioManosCharco.Play();
-
-        // 2. Transición del clímax: Arrastre hacia abajo, cámara mira abajo, temblor y oscurecimiento a negro total
-        float tFase3 = 0f;
-        Vector3 posInicialArrastre = (xrOriginTransform != null) ? xrOriginTransform.position : Vector3.zero;
+        Vector3 posOriginalXR = (xrOriginTransform != null) ? xrOriginTransform.position : Vector3.zero;
         float rotInicialY = (xrOriginTransform != null) ? xrOriginTransform.localEulerAngles.y : 0f;
 
-        while (tFase3 < duracionFaseCharco)
+        float duracionClimax = 30.0f; // Del segundo 30 al 60 (30 segundos completos)
+        float tClimax = 0f;
+
+        while (tClimax < duracionClimax)
         {
-            tFase3 += Time.deltaTime;
-            float factor = Mathf.Clamp01(tFase3 / duracionFaseCharco);
+            tClimax += Time.deltaTime;
+            float factor = Mathf.Clamp01(tClimax / duracionClimax);
 
-            // Curva suave de arrastre hacia el fondo
-            float progresoHundimiento = Mathf.SmoothStep(0f, 1f, factor);
+            // A) Las manos van saliendo suavemente del suelo (30s - 45s)
+            float factorSalida = Mathf.Clamp01(tClimax / 15.0f);
+            float progresoSalida = Mathf.SmoothStep(0f, 1f, factorSalida);
+            if (charcoObjeto != null)
+            {
+                charcoObjeto.transform.position = Vector3.Lerp(posInicialCharcoOculto, posFinalCharcoEmergido, progresoSalida);
+            }
 
-            // Temblor angustioso que aumenta a medida que lo arrastran
-            float intensidadTemblor = aplicarTemblorCamara ? Mathf.Lerp(0.02f, 0.09f, factor) : 0f;
-            float temblorPosX = (Mathf.PerlinNoise(Time.time * 36f, 0f) - 0.5f) * intensidadTemblor;
-            float temblorPosY = (Mathf.PerlinNoise(0f, Time.time * 36f) - 0.5f) * (intensidadTemblor * 0.5f);
-            float temblorPosZ = (Mathf.PerlinNoise(Time.time * 36f, Time.time * 36f) - 0.5f) * intensidadTemblor;
+            // B) La cámara mira hacia abajo suavemente hacia las manos en el suelo
+            float factorInclinacion = Mathf.Clamp01(tClimax / 12.0f);
+            float inclinacion = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factorInclinacion));
 
-            float temblorRotX = (Mathf.PerlinNoise(Time.time * 42f, 15f) - 0.5f) * (intensidadTemblor * 45f);
-            float temblorRotZ = (Mathf.PerlinNoise(15f, Time.time * 42f) - 0.5f) * (intensidadTemblor * 45f);
+            // C) Temblor angustioso que aumenta progresivamente
+            float intensidadTemblor = Mathf.Lerp(0.015f, 0.12f, factor);
+            float shakeX = (Mathf.PerlinNoise(Time.time * 32f, 0f) - 0.5f) * intensidadTemblor;
+            float shakeY = (Mathf.PerlinNoise(0f, Time.time * 32f) - 0.5f) * (intensidadTemblor * 0.4f);
+            float shakeZ = (Mathf.PerlinNoise(Time.time * 32f, Time.time * 32f) - 0.5f) * intensidadTemblor;
+            float shakeRot = (Mathf.PerlinNoise(Time.time * 36f, 10f) - 0.5f) * (intensidadTemblor * 35f);
 
-            // A) ARRASTRAR HACIA ABAJO (Hundimiento en el suelo)
+            // D) El personaje es tragado por la tierra (a partir del segundo 42 al 60)
+            float factorHundimiento = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
+            float curvaHundimiento = Mathf.SmoothStep(0f, 1f, factorHundimiento);
+
             if (xrOriginTransform != null)
             {
-                Vector3 posDescenso = posInicialArrastre - new Vector3(0f, progresoHundimiento * profundidadHundimiento, 0f);
-                xrOriginTransform.position = posDescenso + new Vector3(temblorPosX, temblorPosY, temblorPosZ);
-
-                // B) LA CÁMARA MIRA HACIA ABAJO (Inclinación forzada hacia las manos y el suelo)
-                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 1.8f));
-                xrOriginTransform.localRotation = Quaternion.Euler(inclinacionX + temblorRotX, rotInicialY, temblorRotZ);
+                Vector3 posHundida = posOriginalXR - new Vector3(0f, curvaHundimiento * profundidadHundimiento, 0f);
+                xrOriginTransform.position = posHundida + new Vector3(shakeX, shakeY, shakeZ);
+                xrOriginTransform.localRotation = Quaternion.Euler(inclinacion + shakeRot, rotInicialY, shakeRot);
             }
-
-            // Para pruebas en Editor / no VR, inclinar también la cámara si es objeto directo
             if (xrOriginTransform == jugadorVR && jugadorVR != null)
             {
-                float inclinacionX = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factor * 1.8f));
-                jugadorVR.localRotation = Quaternion.Euler(inclinacionX + temblorRotX, jugadorVR.localEulerAngles.y, temblorRotZ);
+                jugadorVR.localRotation = Quaternion.Euler(inclinacion + shakeRot, jugadorVR.localEulerAngles.y, shakeRot);
             }
 
-            // C) LA PANTALLA SE VA TORNANDO NEGRA DEL TODO (Overlay + PostProcessing)
-            SetBlackoutAlpha(factor);
+            // E) LA PANTALLA SE VA PONIENDO DE A POQUITO NEGRA (DESDE EL SEGUNDO 30 AL 60)
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.colorFilter.overrideState = true;
+                colorAdjustments.colorFilter.value = Color.Lerp(Color.white, Color.black, factor);
 
+                colorAdjustments.postExposure.overrideState = true;
+                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -15f, factor);
+            }
             if (vignette != null)
             {
+                vignette.color.overrideState = true;
                 vignette.color.value = Color.black;
-                vignette.intensity.value = Mathf.Lerp(0.2f, 1.0f, factor);
+
+                vignette.intensity.overrideState = true;
+                vignette.intensity.value = Mathf.Lerp(0f, 1.0f, factor);
+
+                vignette.smoothness.overrideState = true;
+                vignette.smoothness.value = Mathf.Lerp(0.2f, 1.0f, factor);
             }
 
             yield return null;
         }
 
         // ---------------------------------------------------------------------
-        // CIERRE ABRUPTO: Oscuridad 100% total y silencio absoluto (Muerte)
+        // SEGUNDO 60: OSCURIDAD TOTAL Y SILENCIO ABSOLUTO (FIN DE LA EXPERIENCIA)
         // ---------------------------------------------------------------------
-        SetBlackoutAlpha(1.0f); // 100% NEGRO TOTAL GARANTIZADO
+        if (colorAdjustments != null)
+        {
+            colorAdjustments.colorFilter.value = Color.black;
+            colorAdjustments.postExposure.value = -18f;
+        }
+        if (vignette != null)
+        {
+            vignette.intensity.value = 1.0f;
+            vignette.smoothness.value = 1.0f;
+        }
 
         if (audioMusicaEstatica != null) audioMusicaEstatica.Stop();
         if (audioManosCharco != null) audioManosCharco.Stop();
 
-        Debug.Log("🏁 Fin Escena 2 (60s): Jugador totalmente consumido bajo el suelo en oscuridad absoluta.");
+        Debug.Log("🏁 Fin Escena 2 (60s): Jugador totalmente tragado en oscuridad absoluta.");
     }
 }
