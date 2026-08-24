@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
@@ -39,12 +40,20 @@ public class Escena1Secuencia : MonoBehaviour
 
     [Header("Configuración de Multitud")]
     public float distanciaSpawn = 18.0f;
-    public float radioMinimoCercano = 1.1f;
-    public float radioMaximoCercano = 2.2f;
+    [Tooltip("Radio de carrera súper cercano al jugador (en metros)")]
+    public float radioMinimoCercano = 0.65f;
+    public float radioMaximoCercano = 1.15f;
     public float velocidadCaminarMin = 0.75f;
     public float velocidadCaminarMax = 0.95f;
-    public float velocidadCorrerMin = 2.4f;
-    public float velocidadCorrerMax = 3.2f;
+    public float velocidadCorrerMin = 3.4f;
+    public float velocidadCorrerMax = 4.2f;
+
+    [Header("Escala Gigante al Correr (Para agobiar al jugador)")]
+    [Tooltip("Multiplicador de tamaño mínimo al empezar a correr")]
+    public float escalaGiganteMin = 1.45f;
+    [Tooltip("Multiplicador de tamaño máximo al empezar a correr")]
+    public float escalaGiganteMax = 1.65f;
+
     public float tiempoEntreSpawns = 0.25f;
     public int multitudInicial = 65;
     public int limiteMaximoNPCs = 85;
@@ -52,14 +61,24 @@ public class Escena1Secuencia : MonoBehaviour
     [Header("Rojo Carmesí (A partir del segundo 30)")]
     public Color colorRojoCarmesi = new Color(0.85f, 0.05f, 0.05f);
 
+    [Header("Transición de Párpados (Entrecerrar Ojos)")]
+    [Tooltip("Activar el efecto visual de entrecerrar y cerrar los ojos antes de cambiar a Escena 2")]
+    public bool activarEfectoParpados = true;
+    [Tooltip("Duración más humana y pausada de la pesadez, pestañeo y cierre final de ojos (en segundos)")]
+    public float duracionEfectoParpados = 5.5f;
+
     [Header("Transición")]
     public string nombreEscena2 = "Escena 2";
 
-    // Componentes internos
+    // Componentes internos y de Párpados
     private ColorAdjustments colorAdjustments;
     private Vignette vignette;
     private bool permitirSpawns = true;
     public static List<CaminanteMarcha> listaNPCs = new List<CaminanteMarcha>();
+
+    private GameObject overlayParpadosObj;
+    private RectTransform rectParpadoSuperior;
+    private RectTransform rectParpadoInferior;
 
     void Start()
     {
@@ -75,6 +94,10 @@ public class Escena1Secuencia : MonoBehaviour
         {
             xrOriginTransform.position += new Vector3(0, -reduccionAlturaCamara, 0);
         }
+
+        // Construir el sistema visual de párpados frente al visor VR
+        CrearOverlayParpados();
+        SetCierreParpados(0f); // Ojos abiertos al inicio
 
         // Asegurar que el Timer esté presente pero TOTALMENTE OCULTO en el visor
         TimerVR timer = FindFirstObjectByType<TimerVR>();
@@ -123,14 +146,76 @@ public class Escena1Secuencia : MonoBehaviour
         StartCoroutine(CronologiaEscena1());
     }
 
+    private void CrearOverlayParpados()
+    {
+        if (jugadorVR == null) return;
+
+        overlayParpadosObj = new GameObject("VR_Parpados_Overlay");
+        overlayParpadosObj.transform.SetParent(jugadorVR, false);
+        overlayParpadosObj.transform.localPosition = new Vector3(0, 0, 0.22f);
+        overlayParpadosObj.transform.localRotation = Quaternion.identity;
+
+        Canvas canvas = overlayParpadosObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 9999;
+
+        RectTransform rectCanvas = overlayParpadosObj.GetComponent<RectTransform>();
+        rectCanvas.sizeDelta = new Vector2(3.2f, 3.2f);
+
+        // Párpado Superior Humano (Hace el 70% del recorrido hacia abajo)
+        GameObject superiorObj = new GameObject("ParpadoSuperior");
+        superiorObj.transform.SetParent(overlayParpadosObj.transform, false);
+        Image imgSuperior = superiorObj.AddComponent<Image>();
+        imgSuperior.color = Color.black;
+
+        rectParpadoSuperior = superiorObj.GetComponent<RectTransform>();
+        rectParpadoSuperior.anchorMin = new Vector2(0f, 0.32f);
+        rectParpadoSuperior.anchorMax = new Vector2(1f, 1f);
+        rectParpadoSuperior.pivot = new Vector2(0.5f, 1f);
+        rectParpadoSuperior.anchoredPosition = Vector2.zero;
+        rectParpadoSuperior.sizeDelta = Vector2.zero;
+        rectParpadoSuperior.localScale = new Vector3(1f, 0f, 1f);
+
+        // Párpado Inferior Humano (Hace el 30% del recorrido hacia arriba)
+        GameObject inferiorObj = new GameObject("ParpadoInferior");
+        inferiorObj.transform.SetParent(overlayParpadosObj.transform, false);
+        Image imgInferior = inferiorObj.AddComponent<Image>();
+        imgInferior.color = Color.black;
+
+        rectParpadoInferior = inferiorObj.GetComponent<RectTransform>();
+        rectParpadoInferior.anchorMin = new Vector2(0f, 0f);
+        rectParpadoInferior.anchorMax = new Vector2(1f, 0.32f);
+        rectParpadoInferior.pivot = new Vector2(0.5f, 0f);
+        rectParpadoInferior.anchoredPosition = Vector2.zero;
+        rectParpadoInferior.sizeDelta = Vector2.zero;
+        rectParpadoInferior.localScale = new Vector3(1f, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Establece el cierre de párpados: 0 = Ojos totalmente abiertos, 1 = Ojos totalmente cerrados.
+    /// </summary>
+    public void SetCierreParpados(float cierre)
+    {
+        cierre = Mathf.Clamp01(cierre);
+        if (rectParpadoSuperior != null)
+        {
+            rectParpadoSuperior.localScale = new Vector3(1f, cierre, 1f);
+        }
+        if (rectParpadoInferior != null)
+        {
+            rectParpadoInferior.localScale = new Vector3(1f, cierre, 1f);
+        }
+    }
+
     // =========================================================================
     // CRONOLOGÍA EXACTA ESCENA 1 (Total: 60 seg / 1:00 min)
     // 
     // 1. (0s - 30s): Caminan normal y escena normal.
     // 2. (30s - 42s): Se torna rojo del todo con latidos y murmullos.
     // 3. (42s - 50s): Se quedan quietos y mirando al personaje.
-    // 4. (50s - 60s): Corren alrededor del personaje muy cerca por 10 segundos completos.
-    // 5. (60s): Al terminar los 10 segundos corriendo, cambia a Escena 2.
+    // 4. (50s - 60s): Corren alrededor del personaje muy cerca y creciendo de tamaño.
+    //                 Al final (~5.5s), transición humana de pesadez y cierre de ojos.
+    // 5. (60s): Cierre de ojos 100% y transición inmediata a Escena 2.
     // =========================================================================
     IEnumerator CronologiaEscena1()
     {
@@ -197,7 +282,7 @@ public class Escena1Secuencia : MonoBehaviour
         yield return new WaitForSeconds(8.0f);
 
         // ---------------------------------------------------------------------
-        // FASE 4 (50s - 60s / 10 SEGUNDOS COMPLETOS): CORREN ALREDEDOR MUY CERCA
+        // FASE 4 (50s - 60s / 10 SEGUNDOS COMPLETOS): CORREN MUY CERCA, CRECEN Y ENTRECIERRAN OJOS
         // ---------------------------------------------------------------------
         for (int i = 0; i < listaNPCs.Count; i++)
         {
@@ -206,15 +291,27 @@ public class Escena1Secuencia : MonoBehaviour
             {
                 float radioCercano = Random.Range(radioMinimoCercano, radioMaximoCercano);
                 float velocidadCorrer = Random.Range(velocidadCorrerMin, velocidadCorrerMax);
-                npc.CorrerMuyCercaRodeando(jugadorVR, radioCercano, velocidadCorrer);
+                float multiplicadorEscala = Random.Range(escalaGiganteMin, escalaGiganteMax);
+                npc.CorrerMuyCercaRodeando(jugadorVR, radioCercano, velocidadCorrer, multiplicadorEscala);
             }
         }
 
-        // NO CAMBIAR DE ESCENA HASTA QUE CORRAN POR 10 SEGUNDOS ALREDEDOR
-        yield return new WaitForSeconds(10.0f);
+        // Carrera libre antes de que los párpados empiecen a pesar
+        float tiempoCarreraLibre = Mathf.Max(1.0f, 10.0f - duracionEfectoParpados);
+        yield return new WaitForSeconds(tiempoCarreraLibre);
+
+        // Efecto visual somático de pestañeo humano y cierre de ojos
+        if (activarEfectoParpados)
+        {
+            yield return StartCoroutine(SecuenciaEntrecerrarOjos(duracionEfectoParpados));
+        }
+        else
+        {
+            yield return new WaitForSeconds(duracionEfectoParpados);
+        }
 
         // ---------------------------------------------------------------------
-        // SEGUNDO 60: TRANSICIÓN A ESCENA 2 (Tras los 10s exactos corriendo)
+        // SEGUNDO 60: TRANSICIÓN A ESCENA 2 (Con los ojos completamente cerrados)
         // ---------------------------------------------------------------------
         if (Application.CanStreamedLevelBeLoaded(nombreEscena2))
         {
@@ -222,8 +319,91 @@ public class Escena1Secuencia : MonoBehaviour
         }
         else
         {
-            Debug.Log("🏁 Fin Escena 1 (60s con 10s corriendo alrededor). Cargando: " + nombreEscena2);
+            Debug.Log("🏁 Fin Escena 1 (60s con transición humana de párpados). Cargando: " + nombreEscena2);
         }
+    }
+
+    IEnumerator SecuenciaEntrecerrarOjos(float duracion)
+    {
+        float t = 0f;
+        while (t < duracion)
+        {
+            t += Time.deltaTime;
+            float factor = Mathf.Clamp01(t / duracion);
+
+            float cierre = 0f;
+            // Micro-temblor involuntario por estrés ocular
+            float temblor = (Mathf.PerlinNoise(Time.time * 28f, 0f) - 0.5f) * 0.032f;
+
+            if (factor < 0.20f)
+            {
+                // 1. Pesadez inicial: Los ojos se entrecierran ligeramente (35%)
+                float subT = factor / 0.20f;
+                cierre = Mathf.Lerp(0f, 0.35f, Mathf.SmoothStep(0f, 1f, subT));
+            }
+            else if (factor < 0.44f)
+            {
+                // 2. Primer pestañeo humano: Caída rápida (88%) y apertura perezosa y lenta (30%)
+                float subT = (factor - 0.20f) / 0.24f;
+                if (subT < 0.35f)
+                {
+                    float cT = subT / 0.35f;
+                    cierre = Mathf.Lerp(0.35f, 0.88f, Mathf.SmoothStep(0f, 1f, cT));
+                }
+                else
+                {
+                    float oT = (subT - 0.35f) / 0.65f;
+                    cierre = Mathf.Lerp(0.88f, 0.30f, Mathf.SmoothStep(0f, 1f, oT));
+                }
+            }
+            else if (factor < 0.70f)
+            {
+                // 3. Segundo pestañeo pesado: Casi cierre (96%), micro-pausa de cansancio y reapertura difícil (50%)
+                float subT = (factor - 0.44f) / 0.26f;
+                if (subT < 0.30f)
+                {
+                    float cT = subT / 0.30f;
+                    cierre = Mathf.Lerp(0.30f, 0.96f, Mathf.SmoothStep(0f, 1f, cT));
+                }
+                else if (subT < 0.45f)
+                {
+                    cierre = 0.96f; // Ojos casi cerrados por agotamiento
+                }
+                else
+                {
+                    float oT = (subT - 0.45f) / 0.55f;
+                    cierre = Mathf.Lerp(0.96f, 0.50f, Mathf.SmoothStep(0f, 1f, oT));
+                }
+            }
+            else
+            {
+                // 4. Caída final lenta y pesada: Rendición total hacia el negro absoluto (100%)
+                float subT = (factor - 0.70f) / 0.30f;
+                cierre = Mathf.Lerp(0.50f, 1.0f, Mathf.SmoothStep(0f, 1f, subT));
+            }
+
+            // Aplicar el micro-temblor orgánico en estados intermedios
+            if (cierre > 0.05f && cierre < 0.98f)
+            {
+                cierre = Mathf.Clamp01(cierre + temblor);
+            }
+
+            SetCierreParpados(cierre);
+
+            // Ahogar progresivamente los audios en sincronía con la pérdida de conciencia
+            if (factor > 0.40f)
+            {
+                float factorAudio = (factor - 0.40f) / 0.60f;
+                if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.9f, 0.05f, factorAudio);
+                if (audioLatidos != null) audioLatidos.volume = Mathf.Lerp(1.0f, 0.15f, factorAudio);
+                if (filtroAmbiente != null) filtroAmbiente.cutoffFrequency = Mathf.Lerp(600f, 120f, factorAudio);
+            }
+
+            yield return null;
+        }
+
+        SetCierreParpados(1.0f); // Ojos 100% cerrados
+        yield return new WaitForSeconds(0.3f);
     }
 
     IEnumerator GeneradorContinuo()

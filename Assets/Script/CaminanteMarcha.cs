@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class CaminanteMarcha : MonoBehaviour
@@ -22,10 +23,14 @@ public class CaminanteMarcha : MonoBehaviour
     private Vector3 vectorDerecha;
     private float alturaBaseY;
     private Animator animador;
+    private Vector3 escalaInicial = Vector3.one;
+    private Vector3 escalaObjetivo = Vector3.one;
 
     void Awake()
     {
         animador = GetComponentInChildren<Animator>();
+        escalaInicial = transform.localScale;
+        escalaObjetivo = escalaInicial;
     }
 
     void OnEnable()
@@ -88,18 +93,26 @@ public class CaminanteMarcha : MonoBehaviour
         }
     }
 
-    // 3. Corren alrededor del personaje muy cerca (por 10 segundos)
-    public void CorrerMuyCercaRodeando(Transform jugador, float radioCercano, float velocidadCorrer)
+    // 3. Corren alrededor del personaje muy cerca (y crecen en tamaño para agobiar al jugador)
+    public void CorrerMuyCercaRodeando(Transform jugador, float radioCercano, float velocidadCorrer, float multiplicadorEscala = 1.55f)
     {
         centroJugador = jugador;
         radioOrbita = radioCercano;
         velocidadLineal = velocidadCorrer;
         estado = EstadoCaminante.CorriendoCercaRodeando;
 
+        // Escalar la sombra para que se vuelva significativamente más grande que el jugador
+        if (escalaInicial == Vector3.zero) escalaInicial = Vector3.one;
+        escalaObjetivo = new Vector3(
+            escalaInicial.x * (1f + (multiplicadorEscala - 1f) * 0.75f),
+            escalaInicial.y * multiplicadorEscala,
+            escalaInicial.z * (1f + (multiplicadorEscala - 1f) * 0.75f)
+        );
+
         // Animación acelerada para representar que están corriendo
         if (animador != null)
         {
-            animador.speed = 1.7f;
+            animador.speed = 1.85f;
         }
 
         if (centroJugador != null)
@@ -172,8 +185,11 @@ public class CaminanteMarcha : MonoBehaviour
 
     private void ActualizarCorriendoCercaRodeando(float dt)
     {
+        // Crecer suavemente hacia el tamaño gigante
+        transform.localScale = Vector3.Lerp(transform.localScale, escalaObjetivo, dt * 2.8f);
+
         // Avanzar rápidamente en ángulo alrededor del personaje
-        float velAng = (velocidadLineal / Mathf.Max(0.5f, radioOrbita)) * sentidoGiro;
+        float velAng = (velocidadLineal / Mathf.Max(0.4f, radioOrbita)) * sentidoGiro;
         anguloActual += velAng * dt;
 
         if (anguloActual > Mathf.PI * 2f) anguloActual -= Mathf.PI * 2f;
