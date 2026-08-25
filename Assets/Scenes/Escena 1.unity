@@ -1061,7 +1061,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Escena1Secuencia
   jugadorVR: {fileID: 510027637}
-  xrOriginTransform: {fileID: 0}
+  xrOriginTransform: {fileID: 52633089}
   npcPrefab: {fileID: 853666668}
   volumeAmbiente: {fileID: 832575518}
   reduccionAlturaCamara: 0.35

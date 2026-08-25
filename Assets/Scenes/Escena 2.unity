@@ -1124,6 +1124,7 @@ MonoBehaviour:
   charcoObjeto: {fileID: 1241893882}
   cantidadCharcosManos: 5
   radioDistribucionManos: 0.65
+  elevacionManos: 0.35
   puntoSpawnCharco: {fileID: 0}
   profundidadHundimiento: 2.8
   anguloMirarAbajo: 70
@@ -1527,6 +1528,13 @@ PrefabInstance:
     m_RemovedGameObjects:
     - {fileID: 959781487872494922, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
     - {fileID: 3308488995353308482, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: -3833142219842248675, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: -8675930788920605329, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: 4543828065364337680, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: -3065993571070417948, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: 6934650038730429518, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: -1436214137693644855, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
+    - {fileID: -1243745482273308603, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 68b50fe6eef57a44680ad6edc08b09dc, type: 3}
@@ -1555,6 +1563,9 @@ MonoBehaviour:
   volumeAmbiente: {fileID: 832575518}
   tiempoTotalEscena: 60
   charcoObjeto: {fileID: 1241893882}
+  cantidadCharcosManos: 5
+  radioDistribucionManos: 0.65
+  elevacionManos: 0.35
   puntoSpawnCharco: {fileID: 0}
   profundidadHundimiento: 2.8
   anguloMirarAbajo: 70

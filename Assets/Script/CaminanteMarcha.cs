@@ -31,6 +31,11 @@ public class CaminanteMarcha : MonoBehaviour
         animador = GetComponentInChildren<Animator>();
         escalaInicial = transform.localScale;
         escalaObjetivo = escalaInicial;
+        alturaBaseY = transform.position.y;
+
+        // Desactivar colliders propios para que no interfieran con raycasts
+        Collider[] colliders = GetComponentsInChildren<Collider>(true);
+        foreach (var c in colliders) c.enabled = false;
     }
 
     void OnEnable()
@@ -51,10 +56,12 @@ public class CaminanteMarcha : MonoBehaviour
     {
         centroJugador = jugador;
         velocidadLineal = vel;
-        alturaBaseY = transform.position.y;
         radioOrbita = radioCercano;
         sentidoGiro = sentido;
         estado = EstadoCaminante.MarchaIndiferente;
+
+        // Altura base fija en el suelo de la calle
+        alturaBaseY = transform.position.y;
 
         Vector3 dir = (puntoObjetivo - transform.position);
         dir.y = 0;
@@ -102,7 +109,7 @@ public class CaminanteMarcha : MonoBehaviour
         estado = EstadoCaminante.CorriendoCercaRodeando;
 
         // Escalar la sombra para que se vuelva significativamente más grande que el jugador
-        if (escalaInicial == Vector3.zero) escalaInicial = Vector3.one;
+        if (escalaInicial == Vector3.zero) escalaInicial = transform.localScale;
         escalaObjetivo = new Vector3(
             escalaInicial.x * (1f + (multiplicadorEscala - 1f) * 0.75f),
             escalaInicial.y * multiplicadorEscala,
@@ -123,7 +130,7 @@ public class CaminanteMarcha : MonoBehaviour
         }
     }
 
-    // Sobrecarga de compatibilidad
+    // Sobrecargas de compatibilidad
     public void Iniciar(Vector3 puntoObjetivo, float vel)
     {
         if (Camera.main != null) centroJugador = Camera.main.transform;
@@ -187,7 +194,9 @@ public class CaminanteMarcha : MonoBehaviour
         if (dirFinal != Vector3.zero)
         {
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dirFinal), dt * 6f);
-            transform.position += dirFinal * (velocidadLineal * dt);
+            Vector3 nuevaPos = transform.position + dirFinal * (velocidadLineal * dt);
+            nuevaPos.y = alturaBaseY; // Mantener 100% fija la altura en la calle
+            transform.position = nuevaPos;
         }
     }
 
@@ -203,7 +212,7 @@ public class CaminanteMarcha : MonoBehaviour
         if (anguloActual > Mathf.PI * 2f) anguloActual -= Mathf.PI * 2f;
         if (anguloActual < 0f) anguloActual += Mathf.PI * 2f;
 
-        // Posición en círculo cerrado muy cerca del jugador
+        // Mantener altura exacta del suelo en la órbita
         Vector3 posObjetivo = new Vector3(
             centroJugador.position.x + Mathf.Sin(anguloActual) * radioOrbita,
             alturaBaseY,
@@ -211,7 +220,9 @@ public class CaminanteMarcha : MonoBehaviour
         );
 
         Vector3 repulsion = CalcularRepulsionVecinos();
+        repulsion.y = 0;
         posObjetivo += repulsion;
+        posObjetivo.y = alturaBaseY;
 
         // Orientar hacia el vector tangente de carrera
         Vector3 tangente = new Vector3(
@@ -226,8 +237,10 @@ public class CaminanteMarcha : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, rotDeseada, dt * 10f);
         }
 
-        // Desplazamiento ágil hacia la posición orbital
-        transform.position = Vector3.Lerp(transform.position, posObjetivo, dt * 8f);
+        // Desplazamiento ágil hacia la posición orbital manteniendo Y fijo
+        Vector3 posLerp = Vector3.Lerp(transform.position, posObjetivo, dt * 8f);
+        posLerp.y = alturaBaseY;
+        transform.position = posLerp;
     }
 
     private void ActualizarQuietoMirando(float dt)

@@ -1,13 +1,15 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 
 public class Escena1Secuencia : MonoBehaviour
 {
+    private static Escena1Secuencia instance;
+
     [Header("Referencias Principales")]
     [Tooltip("La cámara del casco VR (Main Camera)")]
     public Transform jugadorVR;
@@ -23,7 +25,10 @@ public class Escena1Secuencia : MonoBehaviour
 
     [Header("Ajuste de Altura")]
     [Tooltip("Reduce la altura de la cámara para que el usuario se sienta más pequeño frente a las sombras")]
-    public float reduccionAlturaCamara = 0.35f;
+    public float reduccionAlturaCamara = 0.0f;
+
+    [Tooltip("Ajuste fino de altura de los pies de los NPCs con el suelo (en metros)")]
+    public float offsetAlturaPiesNPC = 0.0f;
 
     [Header("Clips de Audio (Arrastra tus archivos de Audio .wav / .mp3 aquí)")]
     [Tooltip("Audio del ambiente normal de la ciudad/calle (Suena del segundo 0 al 30)")]
@@ -58,84 +63,98 @@ public class Escena1Secuencia : MonoBehaviour
     public float distanciaSpawn = 18.0f;
     [Tooltip("Radio de carrera súper cercano al jugador (en metros)")]
     public float radioMinimoCercano = 0.65f;
-    public float radioMaximoCercano = 1.15f;
-    public float velocidadCaminarMin = 0.75f;
-    public float velocidadCaminarMax = 0.95f;
-    public float velocidadCorrerMin = 3.4f;
-    public float velocidadCorrerMax = 4.2f;
+    public float velocidadCaminarMin = 0.8f;
+    public float velocidadCaminarMax = 1.3f;
+    public float velocidadCorrerMin = 4.0f;
+    public float velocidadCorrerMax = 6.0f;
+    public int limiteMaximoNPCs = 25;
+    public int multitudInicial = 14;
+    public float tiempoEntreSpawns = 2.0f;
 
-    [Header("Escala Gigante al Correr (Para agobiar al jugador)")]
-    [Tooltip("Multiplicador de tamaño mínimo al empezar a correr")]
-    public float escalaGiganteMin = 1.45f;
-    [Tooltip("Multiplicador de tamaño máximo al empezar a correr")]
-    public float escalaGiganteMax = 1.65f;
+    [Header("Efectos Visuales (Rojo y Angustia)")]
+    public Color colorRojoCarmesi = new Color(0.85f, 0.04f, 0.04f, 1f);
 
-    public float tiempoEntreSpawns = 0.25f;
-    public int multitudInicial = 65;
-    public int limiteMaximoNPCs = 85;
-
-    [Header("Efectos Visuales (Segundo 30 al 42)")]
-    [Tooltip("Color rojo carmesí envolvente")]
-    public Color colorRojoCarmesi = new Color(0.85f, 0.05f, 0.05f, 1.0f);
-
-    [Header("Efecto de Párpados Somático (Final de Escena)")]
-    [Tooltip("Activar el efecto visual de entrecerrar y cerrar los ojos antes de cambiar a Escena 2")]
-    public bool activarEfectoParpados = true;
-    [Tooltip("Duración más humana y pausada de la pesadez, pestañeo y cierre final de ojos (en segundos)")]
-    public float duracionEfectoParpados = 5.5f;
-
-    [Header("Transición")]
-    public string nombreEscena2 = "Escena 2";
-
-    // Componentes internos y de Párpados
-    private ColorAdjustments colorAdjustments;
-    private Vignette vignette;
-    private bool permitirSpawns = true;
     public static List<CaminanteMarcha> listaNPCs = new List<CaminanteMarcha>();
 
+    // Post-processing interno
+    private ColorAdjustments colorAdjustments;
+    private Vignette vignette;
+
+    // Párpados UI VR
     private GameObject overlayParpadosObj;
     private RectTransform rectParpadoSuperior;
     private RectTransform rectParpadoInferior;
 
+    private bool permitirSpawns = true;
+    private float alturaCalleDetectada = 15.49f;
+
+    void Awake()
+    {
+        if (instance != null && instance != this)
+        {
+            Destroy(this);
+            return;
+        }
+        instance = this;
+
+        listaNPCs.Clear();
+    }
+
     void Start()
     {
-        listaNPCs.Clear();
-
         if (jugadorVR == null && Camera.main != null)
         {
             jugadorVR = Camera.main.transform;
         }
 
-        // Bajar ligeramente la cámara si se especificó el XR Origin o Camera Offset
-        if (xrOriginTransform != null)
+        if (xrOriginTransform == null && jugadorVR != null)
         {
-            xrOriginTransform.position += new Vector3(0, -reduccionAlturaCamara, 0);
+            if (jugadorVR.parent != null) xrOriginTransform = jugadorVR.parent;
+            else xrOriginTransform = jugadorVR;
         }
 
-        // Construir el sistema visual de párpados frente al visor VR
-        CrearOverlayParpados();
-        SetCierreParpados(0f); // Ojos abiertos al inicio
-
-        // Asegurar que el Timer esté presente pero TOTALMENTE OCULTO en el visor
-        TimerVR timer = FindFirstObjectByType<TimerVR>();
-        if (timer == null)
+        // Buscar y calibrar la altura exacta del suelo de la calle
+        if (npcPrefab != null)
         {
-            timer = gameObject.AddComponent<TimerVR>();
+            alturaCalleDetectada = npcPrefab.transform.position.y;
         }
-        timer.tiempoTotalSegundos = 60.0f;
-        timer.mostrarHUD = false;
-        timer.OcultarHUD();
+        else
+        {
+            alturaCalleDetectada = 15.49f;
+        }
 
-        // Setup inicial del Post-Processing: Escena normal y limpia
+        // Asegurar que la cámara tenga Post-Processing ACTIVADO en URP
+        if (jugadorVR != null)
+        {
+            UniversalAdditionalCameraData cameraData = jugadorVR.GetComponent<UniversalAdditionalCameraData>();
+            if (cameraData != null)
+            {
+                cameraData.renderPostProcessing = true;
+            }
+        }
+
+        // Buscar el Volume global si no fue asignado
+        if (volumeAmbiente == null)
+        {
+            volumeAmbiente = FindFirstObjectByType<Volume>();
+        }
+
+        // Configurar Post-Processing completamente limpio al inicio (Escena normal)
         if (volumeAmbiente != null && volumeAmbiente.profile != null)
         {
             volumeAmbiente.profile.TryGet(out colorAdjustments);
             volumeAmbiente.profile.TryGet(out vignette);
 
-            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.white;
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.colorFilter.overrideState = true;
+                colorAdjustments.colorFilter.value = Color.white;
+            }
             if (vignette != null)
             {
-                vignette.color.value = colorRojoCarmesi;
+                vignette.color.overrideState = true;
+                vignette.color.value = Color.black;
+                vignette.intensity.overrideState = true;
                 vignette.intensity.value = 0f;
             }
         }
@@ -153,11 +172,12 @@ public class Escena1Secuencia : MonoBehaviour
             audioAmbienteNormal.loop = true;
             audioAmbienteNormal.playOnAwake = false;
             audioAmbienteNormal.spatialBlend = 0f;
-            audioAmbienteNormal.volume = 0.8f;
+            audioAmbienteNormal.volume = 1.0f;
         }
         else if (audioAmbienteNormal != null && clipAmbienteNormal != null)
         {
             audioAmbienteNormal.clip = clipAmbienteNormal;
+            audioAmbienteNormal.volume = 1.0f;
         }
 
         // 2. Configurar Audio de Ambiente Abrumador (FiltroAmbiente.wav - 30s a 60s)
@@ -168,7 +188,7 @@ public class Escena1Secuencia : MonoBehaviour
             audioAmbienteAbrumador.loop = true;
             audioAmbienteAbrumador.playOnAwake = false;
             audioAmbienteAbrumador.spatialBlend = 0f;
-            audioAmbienteAbrumador.volume = 0f; // Empieza en 0 y sube al segundo 30
+            audioAmbienteAbrumador.volume = 0f;
         }
         else if (audioAmbienteAbrumador != null && clipAmbienteAbrumador != null)
         {
@@ -205,10 +225,12 @@ public class Escena1Secuencia : MonoBehaviour
             audioMurmullos.clip = clipMurmullos;
         }
 
+        AudioListener.volume = 1.0f;
+
         // Iniciar reproducción del ambiente normal al arrancar
         if (audioAmbienteNormal != null && !audioAmbienteNormal.isPlaying)
         {
-            audioAmbienteNormal.volume = 0.8f;
+            audioAmbienteNormal.volume = 1.0f;
             audioAmbienteNormal.Play();
         }
 
@@ -327,11 +349,11 @@ public class Escena1Secuencia : MonoBehaviour
                 vignette.intensity.value = Mathf.Lerp(0f, 1.0f, factor);
             }
 
-            // El ambiente normal se apaga mientras el abrumador y los latidos suben
-            if (audioAmbienteNormal != null) audioAmbienteNormal.volume = Mathf.Lerp(0.8f, 0.05f, factor);
-            if (audioAmbienteAbrumador != null) audioAmbienteAbrumador.volume = Mathf.Lerp(0.1f, 0.95f, factor);
-            if (audioLatidos != null) audioLatidos.volume = Mathf.Lerp(0.2f, 1.0f, factor);
-            if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.1f, 0.9f, factor);
+            // El ambiente normal se apaga mientras el abrumador y los latidos suben con máxima fuerza
+            if (audioAmbienteNormal != null) audioAmbienteNormal.volume = Mathf.Lerp(1.0f, 0.05f, factor);
+            if (audioAmbienteAbrumador != null) audioAmbienteAbrumador.volume = Mathf.Lerp(0.3f, 1.0f, factor);
+            if (audioLatidos != null) audioLatidos.volume = Mathf.Lerp(0.4f, 1.0f, factor);
+            if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.3f, 1.0f, factor);
 
             if (filtroAmbiente != null)
             {
@@ -351,92 +373,106 @@ public class Escena1Secuencia : MonoBehaviour
         permitirSpawns = false;
         for (int i = 0; i < listaNPCs.Count; i++)
         {
-            CaminanteMarcha npc = listaNPCs[i];
-            if (npc != null)
+            if (listaNPCs[i] != null)
             {
-                npc.QuedarseTotalmenteQuietoMirando(jugadorVR);
+                listaNPCs[i].QuedarseTotalmenteQuietoMirando(jugadorVR);
             }
         }
 
         yield return new WaitForSeconds(8.0f);
 
         // ---------------------------------------------------------------------
-        // FASE 4 (50s - 60s / 10 SEGUNDOS COMPLETOS): CORREN MUY CERCA, CRECEN Y ENTRECIERRAN OJOS
+        // FASE 4 (50s - 60s / 10 seg): CORREN ALREDEDOR MUY CERCA Y CRECEN
         // ---------------------------------------------------------------------
+        int mitad = listaNPCs.Count / 2;
         for (int i = 0; i < listaNPCs.Count; i++)
         {
-            CaminanteMarcha npc = listaNPCs[i];
-            if (npc != null)
+            if (listaNPCs[i] != null)
             {
-                float radioCercano = Random.Range(radioMinimoCercano, radioMaximoCercano);
-                float velocidadCorrer = Random.Range(velocidadCorrerMin, velocidadCorrerMax);
-                float multiplicadorEscala = Random.Range(escalaGiganteMin, escalaGiganteMax);
-                npc.CorrerMuyCercaRodeando(jugadorVR, radioCercano, velocidadCorrer, multiplicadorEscala);
+                float sentido = (i < mitad) ? 1.0f : -1.0f;
+                float radio = Random.Range(radioMinimoCercano, radioMinimoCercano + 0.45f);
+                float velCorrer = Random.Range(velocidadCorrerMin, velocidadCorrerMax);
+
+                listaNPCs[i].sentidoGiro = sentido;
+                listaNPCs[i].CorrerMuyCercaRodeando(jugadorVR, radio, velCorrer, 1.6f);
             }
         }
 
-        // Carrera libre antes del cierre de ojos
-        float tiempoCarreraLibre = Mathf.Max(1.0f, 10.0f - duracionEfectoParpados);
-        yield return new WaitForSeconds(tiempoCarreraLibre);
+        // Temblor de angustia creciente en la cabeza del jugador
+        float tCorrer = 0f;
+        Vector3 posOriginalXR = (xrOriginTransform != null) ? xrOriginTransform.position : Vector3.zero;
 
-        // Efecto visual de pestañeo humano y cierre de ojos
-        if (activarEfectoParpados)
+        while (tCorrer < 4.5f)
         {
-            yield return StartCoroutine(SecuenciaEntrecerrarOjos(duracionEfectoParpados));
-        }
-        else
-        {
-            yield return new WaitForSeconds(duracionEfectoParpados);
-        }
+            tCorrer += Time.deltaTime;
+            float factorTemblor = tCorrer / 10.0f;
 
-        // ---------------------------------------------------------------------
-        // SEGUNDO 60: TRANSICIÓN A ESCENA 2 (Con los ojos completamente cerrados)
-        // ---------------------------------------------------------------------
-        if (Application.CanStreamedLevelBeLoaded(nombreEscena2))
-        {
-            SceneManager.LoadScene(nombreEscena2);
-        }
-        else
-        {
-            Debug.Log("🏁 Fin Escena 1 (60s con transición humana de párpados). Cargando: " + nombreEscena2);
-        }
-    }
-
-    IEnumerator SecuenciaEntrecerrarOjos(float duracion)
-    {
-        float t = 0f;
-        float inicioPesadez = duracion * 0.40f;
-
-        while (t < duracion)
-        {
-            t += Time.deltaTime;
-
-            if (t < inicioPesadez)
+            if (xrOriginTransform != null)
             {
-                float factorPre = t / inicioPesadez;
-                float microParpadeo = Mathf.Sin(t * 7.5f);
-                float pesadezInicial = (microParpadeo > 0.82f) ? 0.22f : 0f;
-                SetCierreParpados(Mathf.Lerp(0f, 0.25f, factorPre) + pesadezInicial);
+                float shakeX = (Mathf.PerlinNoise(Time.time * 28f, 0f) - 0.5f) * factorTemblor * 0.08f;
+                float shakeY = (Mathf.PerlinNoise(0f, Time.time * 28f) - 0.5f) * factorTemblor * 0.04f;
+                float shakeZ = (Mathf.PerlinNoise(Time.time * 28f, Time.time * 28f) - 0.5f) * factorTemblor * 0.08f;
+                xrOriginTransform.position = posOriginalXR + new Vector3(shakeX, shakeY, shakeZ);
             }
-            else
+            yield return null;
+        }
+
+        // Últimos 5.5 segundos (54.5s a 60s): Cierre de párpados y transición a Escena 2
+        CrearOverlayParpados();
+
+        float duracionCierre = 5.5f;
+        float tCierre = 0f;
+
+        while (tCierre < duracionCierre)
+        {
+            tCierre += Time.deltaTime;
+            float factorCierre = Mathf.Clamp01(tCierre / duracionCierre);
+            float curvaCierre = Mathf.SmoothStep(0f, 1f, factorCierre);
+
+            SetCierreParpados(curvaCierre);
+
+            if (colorAdjustments != null)
             {
-                float progresoCierre = Mathf.Clamp01((t - inicioPesadez) / (duracion - inicioPesadez));
-                float curvaCierre = Mathf.SmoothStep(0.25f, 1.0f, progresoCierre);
-                float luchaParpadeo = Mathf.Sin(t * 12.0f) * 0.08f * (1.0f - progresoCierre);
-                SetCierreParpados(Mathf.Clamp01(curvaCierre + luchaParpadeo));
+                colorAdjustments.postExposure.overrideState = true;
+                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -10f, curvaCierre);
             }
 
             yield return null;
         }
 
-        SetCierreParpados(1.0f);
+        // ---------------------------------------------------------------------
+        // SEGUNDO 60 (1:00 MINUTO EXACTO): CAMBIO INMEDIATO A ESCENA 2
+        // ---------------------------------------------------------------------
+        Debug.Log("🏁 Fin Escena 1 (60s exactos): Cargando Escena 2...");
+        if (Application.CanStreamedLevelBeLoaded("Escena 2"))
+        {
+            SceneManager.LoadScene("Escena 2");
+        }
+        else
+        {
+            int indexActual = SceneManager.GetActiveScene().buildIndex;
+            if (indexActual + 1 < SceneManager.sceneCountInBuildSettings)
+            {
+                SceneManager.LoadScene(indexActual + 1);
+            }
+            else
+            {
+                SceneManager.LoadScene(0);
+            }
+        }
     }
 
     IEnumerator GeneradorContinuo()
     {
         while (permitirSpawns)
         {
-            listaNPCs.RemoveAll(item => item == null);
+            for (int i = listaNPCs.Count - 1; i >= 0; i--)
+            {
+                if (listaNPCs[i] == null)
+                {
+                    listaNPCs.RemoveAt(i);
+                }
+            }
 
             if (listaNPCs.Count < limiteMaximoNPCs)
             {
@@ -456,17 +492,27 @@ public class Escena1Secuencia : MonoBehaviour
         float angulo = Random.Range(0f, 360f) * Mathf.Deg2Rad;
         Vector3 posSpawn = posCentro + new Vector3(Mathf.Cos(angulo) * distancia, 0, Mathf.Sin(angulo) * distancia);
 
-        Terrain terreno = Terrain.activeTerrain ?? FindFirstObjectByType<Terrain>();
-        if (terreno != null)
-        {
-            posSpawn.y = terreno.SampleHeight(posSpawn) + terreno.transform.position.y;
-        }
-        else
-        {
-            posSpawn.y = posCentro.y;
-        }
+        // Altura exacta de la calle tomada directamente del modelo original en la escena
+        posSpawn.y = alturaCalleDetectada + offsetAlturaPiesNPC;
 
         GameObject nuevoNPC = Instantiate(npcPrefab, posSpawn, Quaternion.identity);
+
+        // Asegurar escala exacta
+        nuevoNPC.transform.localScale = npcPrefab.transform.localScale;
+
+        // Poner NPC y todos sus hijos en Ignore Raycast
+        nuevoNPC.layer = 2; // Ignore Raycast
+        foreach (Transform child in nuevoNPC.GetComponentsInChildren<Transform>(true))
+        {
+            child.gameObject.layer = 2;
+        }
+
+        // Desactivar colliders de los NPCs
+        Collider[] colliders = nuevoNPC.GetComponentsInChildren<Collider>(true);
+        foreach (var c in colliders)
+        {
+            c.enabled = false;
+        }
 
         CaminanteMarcha caminante = nuevoNPC.GetComponent<CaminanteMarcha>();
         if (caminante == null)

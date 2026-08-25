@@ -206,12 +206,15 @@ public class Escena2Secuencia : MonoBehaviour
             audioMusicaEstatica.loop = true;
             audioMusicaEstatica.playOnAwake = false;
             audioMusicaEstatica.spatialBlend = 0f;
-            audioMusicaEstatica.volume = 0.6f;
+            audioMusicaEstatica.volume = 1.0f;
         }
         else if (audioMusicaEstatica != null && clipMusicaEstatica != null)
         {
             audioMusicaEstatica.clip = clipMusicaEstatica;
+            audioMusicaEstatica.volume = 1.0f;
         }
+
+        AudioListener.volume = 1.0f;
 
         // Timer oculto
         TimerVR timer = FindFirstObjectByType<TimerVR>();
@@ -291,7 +294,7 @@ public class Escena2Secuencia : MonoBehaviour
                 tFase1 += Time.deltaTime;
                 if (audioMusicaEstatica != null)
                 {
-                    audioMusicaEstatica.volume = Mathf.Lerp(0.2f, 0.6f, tFase1 / 30.0f);
+                    audioMusicaEstatica.volume = Mathf.Lerp(0.5f, 1.0f, tFase1 / 30.0f);
                 }
                 yield return null;
             }
