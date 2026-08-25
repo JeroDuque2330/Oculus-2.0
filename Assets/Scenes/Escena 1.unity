@@ -1066,9 +1066,9 @@ MonoBehaviour:
   volumeAmbiente: {fileID: 832575518}
   reduccionAlturaCamara: 0.35
   clipAmbienteNormal: {fileID: 8300000, guid: bf6c88a20e25e2947984be6197b8159e, type: 3}
-  clipAmbienteAbrumador: {fileID: 0}
+  clipAmbienteAbrumador: {fileID: 8300000, guid: 05497ede2d1cc5f4c84cd69daea3f30a, type: 3}
   clipLatidos: {fileID: 8300000, guid: 5f0a826e76165184ca25c97fe72b4ed1, type: 3}
-  clipMurmullos: {fileID: 0}
+  clipMurmullos: {fileID: 8300000, guid: 81e93822edbd116408eaa057de1c354f, type: 3}
   audioAmbienteNormal: {fileID: 0}
   audioAmbienteAbrumador: {fileID: 0}
   audioLatidos: {fileID: 0}

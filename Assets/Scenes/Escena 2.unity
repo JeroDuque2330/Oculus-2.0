@@ -1126,7 +1126,7 @@ MonoBehaviour:
   profundidadHundimiento: 2.8
   anguloMirarAbajo: 70
   clipManosCharco: {fileID: 8300000, guid: 7cbace2dcba5d924f86fd2396582c0f5, type: 3}
-  clipMusicaEstatica: {fileID: 0}
+  clipMusicaEstatica: {fileID: 8300000, guid: 1d1e92f576edb5947ad4e7e0a55077eb, type: 3}
   audioMusicaEstatica: {fileID: 0}
   audioManosCharco: {fileID: 0}
   nieblaEspesa: {fileID: 0}
