@@ -26,14 +26,24 @@ public class Escena2Secuencia : MonoBehaviour
     [Tooltip("GameObject o Prefab del modelo charco.fbx")]
     public GameObject charcoObjeto;
 
+    [Tooltip("Cantidad de grupos de manos/charcos que emergerán alrededor del jugador")]
+    [Range(1, 10)]
+    public int cantidadCharcosManos = 5;
+
+    [Tooltip("Radio del círculo en el suelo donde emergerán las manos alrededor del jugador (en metros)")]
+    public float radioDistribucionManos = 0.65f;
+
+    [Tooltip("Elevación extra de las manos sobre el suelo para que se vean más altas y amenazantes")]
+    public float elevacionManos = 0.35f;
+
     [Tooltip("Posición en el suelo donde emergerán las manos (opcional)")]
     public Transform puntoSpawnCharco;
 
     [Tooltip("Profundidad final a la que el personaje es tragado por la tierra")]
-    public float profundidadHundimiento = 3.2f;
+    public float profundidadHundimiento = 3.5f;
 
     [Tooltip("Ángulo de inclinación hacia abajo para ver el suelo y las manos")]
-    public float anguloMirarAbajo = 65.0f;
+    public float anguloMirarAbajo = 68.0f;
 
     [Header("Clips de Audio (Arrastra tus archivos de Audio .wav / .mp3 aquí)")]
     [Tooltip("Clip de audio para las manos emergiendo del charco (Audio Manos Charco.wav)")]
@@ -60,16 +70,21 @@ public class Escena2Secuencia : MonoBehaviour
     // Componentes internos de Post-Processing
     private ColorAdjustments colorAdjustments;
     private Vignette vignette;
-    private Renderer[] renderersCharco;
+
+    // Gestión de múltiples manos duplicadas
+    private List<GameObject> listaInstanciasCharcos = new List<GameObject>();
+    private List<Vector3> listaPosOcultas = new List<Vector3>();
+    private List<Vector3> listaPosEmergidas = new List<Vector3>();
+    private List<Renderer[]> listaRenderersCharcos = new List<Renderer[]>();
+
     private List<Transform> huesosManos = new List<Transform>();
     private List<Quaternion> rotacionesOriginales = new List<Quaternion>();
+    private List<float> desfasesHuesos = new List<float>();
     private bool activarOndulacionTentaculos = false;
 
     private Light luzDireccional;
     private float intensidadLuzOriginal = 1f;
     private float alturaSueloReal = 0f;
-    private Vector3 posInicialCharcoOculto;
-    private Vector3 posFinalCharcoEmergido;
 
     void Awake()
     {
@@ -132,26 +147,12 @@ public class Escena2Secuencia : MonoBehaviour
             charcoObjeto = found ?? this.gameObject;
         }
 
-        // Registrar huesos para la ondulación tentacular
+        // Ocultar el charco base al inicio
         if (charcoObjeto != null)
         {
-            renderersCharco = charcoObjeto.GetComponentsInChildren<Renderer>(true);
-            huesosManos.Clear();
-            rotacionesOriginales.Clear();
-
-            Transform[] todos = charcoObjeto.GetComponentsInChildren<Transform>(true);
-            foreach (var t in todos)
-            {
-                if (t != charcoObjeto.transform)
-                {
-                    huesosManos.Add(t);
-                    rotacionesOriginales.Add(t.localRotation);
-                }
-            }
+            Renderer[] rBase = charcoObjeto.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in rBase) if (r != null) r.enabled = false;
         }
-
-        // Ocultar el charco al inicio
-        EstablecerVisibilidadCharco(false);
 
         // Buscar volume si no fue asignado
         if (volumeAmbiente == null)
@@ -222,32 +223,36 @@ public class Escena2Secuencia : MonoBehaviour
         StartCoroutine(CronologiaEscena2());
     }
 
-    private void EstablecerVisibilidadCharco(bool visible)
+    private void EstablecerVisibilidadTodosCharcos(bool visible)
     {
-        if (renderersCharco != null)
+        for (int i = 0; i < listaRenderersCharcos.Count; i++)
         {
-            for (int i = 0; i < renderersCharco.Length; i++)
+            Renderer[] arr = listaRenderersCharcos[i];
+            if (arr != null)
             {
-                if (renderersCharco[i] != null) renderersCharco[i].enabled = visible;
+                for (int j = 0; j < arr.Length; j++)
+                {
+                    if (arr[j] != null) arr[j].enabled = visible;
+                }
             }
         }
     }
 
     void Update()
     {
-        // Movimiento sinuoso y ondulante como TENTÁCULOS vivos
+        // Movimiento sinuoso y ondulante como TENTÁCULOS vivos en TODAS las manos duplicadas
         if (activarOndulacionTentaculos && huesosManos.Count > 0)
         {
-            float tiempo = Time.time * 3.2f;
+            float tiempo = Time.time * 3.6f;
             for (int i = 0; i < huesosManos.Count; i++)
             {
                 Transform h = huesosManos[i];
                 if (h != null)
                 {
-                    float desfase = i * 0.55f;
-                    float rotX = Mathf.Sin(tiempo + desfase) * 20f;
-                    float rotZ = Mathf.Cos(tiempo * 0.85f + desfase * 1.3f) * 18f;
-                    float rotY = Mathf.Sin(tiempo * 0.6f + desfase * 0.8f) * 14f;
+                    float desfase = desfasesHuesos[i];
+                    float rotX = Mathf.Sin(tiempo + desfase) * 24f;
+                    float rotZ = Mathf.Cos(tiempo * 0.85f + desfase * 1.3f) * 20f;
+                    float rotY = Mathf.Sin(tiempo * 0.6f + desfase * 0.8f) * 16f;
 
                     h.localRotation = rotacionesOriginales[i] * Quaternion.Euler(rotX, rotY, rotZ);
                 }
@@ -259,14 +264,16 @@ public class Escena2Secuencia : MonoBehaviour
     // CRONOLOGÍA EXACTA ESCENA 2 (60 SEGUNDOS)
     // 
     // 1. (0s - 30s): La escena empieza NORMAL (visión clara y limpia del bosque).
-    // 2. (30s - 45s): Al segundo 30:
+    // 2. (30s - 42s): Al segundo 30:
     //                 - La cámara mira hacia abajo suavemente hacia el suelo.
-    //                 - Las manos van saliendo suavemente y se retuercen como tentáculos.
-    //                 - ¡TODO SE VE CON TOTAL CLARIDAD Y LUZ!
-    // 3. (45s - 55s): El personaje empieza a ser arrastrado y tragado por la tierra,
-    //                 y la pantalla se va oscureciendo suavemente de a poco.
-    // 4. (55s - 60s): El personaje termina de hundirse bajo tierra y la pantalla
-    //                 llega al 100% de negro absoluto al segundo 60.
+    //                 - MÚLTIPLES MANOS emergen MÁS ALTAS alrededor del jugador
+    //                   y se retuercen como tentáculos.
+    // 3. (42s - 60s): LAS MANOS TRAGAN AL JUGADOR:
+    //                 - Las manos se alzan y se cierran hacia el cuerpo/cámara del jugador.
+    //                 - El jugador es arrastrado hacia abajo hundiéndose en la tierra.
+    //                 - MIENTRAS LO TRAGAN, la cámara se va oscureciendo suavemente
+    //                   hasta llegar al 100% de negro absoluto al segundo 60.
+    // 4. (60s): Oscuridad total y fin de la experiencia.
     // =========================================================================
     IEnumerator CronologiaEscena2()
     {
@@ -295,11 +302,11 @@ public class Escena2Secuencia : MonoBehaviour
         }
 
         // ---------------------------------------------------------------------
-        // FASE 2 (30s - 60s / 30 seg): CLÍMAX GRADUAL Y BIEN VISIBLE
+        // FASE 2 (30s - 60s / 30 seg): CLÍMAX - MANOS ALTAS, TRAGADO Y OSCURECIMIENTO
         // ---------------------------------------------------------------------
         if (audioManosCharco != null && !audioManosCharco.isPlaying) audioManosCharco.Play();
 
-        // 1. Calcular posición exacta del suelo frente a los pies del jugador
+        // 1. Calcular posición exacta del suelo frente al jugador
         alturaSueloReal = (xrOriginTransform != null) ? xrOriginTransform.position.y : (jugadorVR.position.y - 1.4f);
         Terrain terreno = Terrain.activeTerrain ?? FindFirstObjectByType<Terrain>();
         if (terreno != null)
@@ -307,19 +314,91 @@ public class Escena2Secuencia : MonoBehaviour
             alturaSueloReal = terreno.SampleHeight(jugadorVR.position) + terreno.transform.position.y;
         }
 
+        Vector3 posCentroJugador = new Vector3(jugadorVR.position.x, alturaSueloReal, jugadorVR.position.z);
         Vector3 dirMirada = Vector3.ProjectOnPlane(jugadorVR.forward, Vector3.up).normalized;
         if (dirMirada == Vector3.zero) dirMirada = Vector3.forward;
 
+        // 2. CREAR Y DISTRIBUIR MÚLTIPLES CHARCOS / MANOS MÁS ALTAS ALREDEDOR DEL JUGADOR
+        listaInstanciasCharcos.Clear();
+        listaPosOcultas.Clear();
+        listaPosEmergidas.Clear();
+        listaRenderersCharcos.Clear();
+        huesosManos.Clear();
+        rotacionesOriginales.Clear();
+        desfasesHuesos.Clear();
+
         if (charcoObjeto != null)
         {
-            posFinalCharcoEmergido = new Vector3(jugadorVR.position.x, alturaSueloReal, jugadorVR.position.z) + (dirMirada * 0.45f);
-            posInicialCharcoOculto = posFinalCharcoEmergido - new Vector3(0f, 1.2f, 0f);
+            int total = Mathf.Max(1, cantidadCharcosManos);
 
-            charcoObjeto.transform.position = posInicialCharcoOculto;
-            charcoObjeto.transform.rotation = Quaternion.LookRotation(dirMirada);
-            charcoObjeto.transform.localScale = Vector3.one * 1.15f;
+            for (int i = 0; i < total; i++)
+            {
+                GameObject instancia;
+                if (i == 0)
+                {
+                    instancia = charcoObjeto;
+                }
+                else
+                {
+                    instancia = Instantiate(charcoObjeto);
+                    instancia.name = "charco_duplicado_" + i;
+                }
 
-            EstablecerVisibilidadCharco(true);
+                // Distribuir en arco y círculo alrededor de los pies del jugador
+                float anguloPaso;
+                float distanciaR;
+                if (i == 0)
+                {
+                    anguloPaso = 0f; // Justo enfrente
+                    distanciaR = 0.45f;
+                }
+                else
+                {
+                    // Distribuir alrededor en 360° con variaciones
+                    float anguloOffset = (360f / (total - 1)) * (i - 1) + Random.Range(-15f, 15f);
+                    anguloPaso = anguloOffset;
+                    distanciaR = Random.Range(radioDistribucionManos * 0.75f, radioDistribucionManos * 1.25f);
+                }
+
+                Quaternion rotOffset = Quaternion.Euler(0f, anguloPaso, 0f);
+                Vector3 dirOffset = rotOffset * dirMirada;
+                Vector3 posEmergida = posCentroJugador + (dirOffset * distanciaR);
+
+                float ySuelo = (terreno != null) ? (terreno.SampleHeight(posEmergida) + terreno.transform.position.y) : alturaSueloReal;
+                posEmergida.y = ySuelo + elevacionManos; // Más altas sobre el suelo
+
+                Vector3 posOculta = posEmergida - new Vector3(0f, 1.4f, 0f);
+
+                // Orientar cada grupo de manos mirando hacia el centro/jugador
+                Vector3 mirarAlCentro = (posCentroJugador - posEmergida).normalized;
+                if (mirarAlCentro == Vector3.zero) mirarAlCentro = dirMirada;
+
+                instancia.transform.position = posOculta;
+                instancia.transform.rotation = Quaternion.LookRotation(mirarAlCentro);
+                instancia.transform.localScale = Vector3.one * Random.Range(1.2f, 1.5f); // Manos más grandes y amenazantes
+
+                listaInstanciasCharcos.Add(instancia);
+                listaPosOcultas.Add(posOculta);
+                listaPosEmergidas.Add(posEmergida);
+
+                Renderer[] renderers = instancia.GetComponentsInChildren<Renderer>(true);
+                listaRenderersCharcos.Add(renderers);
+
+                // Registrar todos los huesos de esta instancia de manos para la ondulación tentacular
+                Transform[] transformsInstancia = instancia.GetComponentsInChildren<Transform>(true);
+                foreach (var t in transformsInstancia)
+                {
+                    if (t != instancia.transform)
+                    {
+                        huesosManos.Add(t);
+                        rotacionesOriginales.Add(t.localRotation);
+                        desfasesHuesos.Add(Random.Range(0f, 10f));
+                    }
+                }
+            }
+
+            // Hacer visibles todos los charcos y activar movimiento orgánico
+            EstablecerVisibilidadTodosCharcos(true);
             activarOndulacionTentaculos = true;
         }
 
@@ -334,32 +413,44 @@ public class Escena2Secuencia : MonoBehaviour
             tClimax += Time.deltaTime;
             float factor = Mathf.Clamp01(tClimax / duracionClimax);
 
-            // A) Las manos van saliendo suavemente del suelo durante los primeros 12 segundos (30s - 42s)
+            // A) EMERGER (30s - 42s / tClimax: 0 - 12): Las manos emergen altas de la tierra
             float factorSalida = Mathf.Clamp01(tClimax / 12.0f);
             float progresoSalida = Mathf.SmoothStep(0f, 1f, factorSalida);
-            if (charcoObjeto != null)
+
+            // B) TRAGAR AL JUGADOR (42s - 60s / tClimax: 12 - 30):
+            // Las manos se alzan y se cierran hacia el jugador mientras éste es jalado hacia abajo
+            float factorTragado = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
+            float curvaTragado = Mathf.SmoothStep(0f, 1f, factorTragado);
+
+            for (int i = 0; i < listaInstanciasCharcos.Count; i++)
             {
-                charcoObjeto.transform.position = Vector3.Lerp(posInicialCharcoOculto, posFinalCharcoEmergido, progresoSalida);
+                GameObject inst = listaInstanciasCharcos[i];
+                if (inst != null)
+                {
+                    Vector3 posBase = Vector3.Lerp(listaPosOcultas[i], listaPosEmergidas[i], progresoSalida);
+                    // Cuando empieza el tragado, las manos se alzan hacia arriba y se cierran hacia el centro (envolviendo al jugador)
+                    Vector3 haciaCentro = (posCentroJugador - listaPosEmergidas[i]) * 0.45f;
+                    Vector3 alcanceArriba = new Vector3(0f, 0.55f * curvaTragado, 0f);
+
+                    inst.transform.position = posBase + (haciaCentro * curvaTragado) + alcanceArriba;
+                }
             }
 
-            // B) La cámara mira hacia abajo suavemente hacia las manos en el suelo (30s - 38s)
+            // C) La cámara mira hacia abajo hacia las manos en el suelo (30s - 38s)
             float factorInclinacion = Mathf.Clamp01(tClimax / 8.0f);
             float inclinacion = Mathf.Lerp(0f, anguloMirarAbajo, Mathf.SmoothStep(0f, 1f, factorInclinacion));
 
-            // C) Temblor angustioso que aumenta progresivamente
-            float intensidadTemblor = Mathf.Lerp(0.012f, 0.11f, factor);
-            float shakeX = (Mathf.PerlinNoise(Time.time * 32f, 0f) - 0.5f) * intensidadTemblor;
-            float shakeY = (Mathf.PerlinNoise(0f, Time.time * 32f) - 0.5f) * (intensidadTemblor * 0.4f);
-            float shakeZ = (Mathf.PerlinNoise(Time.time * 32f, Time.time * 32f) - 0.5f) * intensidadTemblor;
-            float shakeRot = (Mathf.PerlinNoise(Time.time * 36f, 10f) - 0.5f) * (intensidadTemblor * 35f);
+            // D) Temblor angustioso que aumenta a medida que lo tragan
+            float intensidadTemblor = Mathf.Lerp(0.015f, 0.13f, factor);
+            float shakeX = (Mathf.PerlinNoise(Time.time * 35f, 0f) - 0.5f) * intensidadTemblor;
+            float shakeY = (Mathf.PerlinNoise(0f, Time.time * 35f) - 0.5f) * (intensidadTemblor * 0.5f);
+            float shakeZ = (Mathf.PerlinNoise(Time.time * 35f, Time.time * 35f) - 0.5f) * intensidadTemblor;
+            float shakeRot = (Mathf.PerlinNoise(Time.time * 38f, 10f) - 0.5f) * (intensidadTemblor * 38f);
 
-            // D) El personaje es arrastrado y tragado por la tierra (visible desde el segundo 42 al 60)
-            float factorHundimiento = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
-            float curvaHundimiento = Mathf.SmoothStep(0f, 1f, factorHundimiento);
-
+            // E) El jugador es jalado y tragado bajo la tierra
             if (xrOriginTransform != null)
             {
-                Vector3 posHundida = posOriginalXR - new Vector3(0f, curvaHundimiento * profundidadHundimiento, 0f);
+                Vector3 posHundida = posOriginalXR - new Vector3(0f, curvaTragado * profundidadHundimiento, 0f);
                 xrOriginTransform.position = posHundida + new Vector3(shakeX, shakeY, shakeZ);
                 xrOriginTransform.localRotation = Quaternion.Euler(inclinacion + shakeRot, rotInicialY, shakeRot);
             }
@@ -368,12 +459,11 @@ public class Escena2Secuencia : MonoBehaviour
                 jugadorVR.localRotation = Quaternion.Euler(inclinacion + shakeRot, jugadorVR.localEulerAngles.y, shakeRot);
             }
 
-            // E) OSCURECIMIENTO SUAVE Y MÁS DESPACIO:
-            // - De 30s a 42s (tClimax 0 a 12): 0% negro (totalmente visible para apreciar las manos emergiendo y moviéndose).
-            // - De 42s a 55s (tClimax 12 a 25): Se oscurece suave y lentamente de 0% a 50% para ver cómo el personaje es tragado por la tierra.
-            // - De 55s a 60s (tClimax 25 a 30): Se completa el fundido al 100% de negro absoluto al quedar totalmente bajo tierra.
-            float factorOscurecer = Mathf.Clamp01((tClimax - 12.0f) / 18.0f);
-            float curvaOscuridad = Mathf.Pow(factorOscurecer, 1.8f); // Curva suave y retrasada
+            // F) PRIMERO LO JALA (40s - 52s / 100% VISIBLE) Y DESPUÉS SE OSCURECE (52s - 60s):
+            // - De 30s a 52s (tClimax 0 a 22): 0% oscuridad (Visión 100% clara para ver el jalado y las manos envolviéndolo).
+            // - De 52s a 60s (tClimax 22 a 30): La pantalla se va oscureciendo de a poco hasta quedar en 100% negro total.
+            float factorOscurecer = Mathf.Clamp01((tClimax - 22.0f) / 8.0f);
+            float curvaOscuridad = Mathf.SmoothStep(0f, 1f, factorOscurecer);
 
             if (colorAdjustments != null)
             {
@@ -381,7 +471,7 @@ public class Escena2Secuencia : MonoBehaviour
                 colorAdjustments.colorFilter.value = Color.Lerp(Color.white, Color.black, curvaOscuridad);
 
                 colorAdjustments.postExposure.overrideState = true;
-                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -14f, curvaOscuridad);
+                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -18f, curvaOscuridad);
             }
             if (vignette != null)
             {
@@ -408,7 +498,7 @@ public class Escena2Secuencia : MonoBehaviour
         if (colorAdjustments != null)
         {
             colorAdjustments.colorFilter.value = Color.black;
-            colorAdjustments.postExposure.value = -18f;
+            colorAdjustments.postExposure.value = -20f;
         }
         if (vignette != null)
         {
@@ -423,6 +513,6 @@ public class Escena2Secuencia : MonoBehaviour
         if (audioMusicaEstatica != null) audioMusicaEstatica.Stop();
         if (audioManosCharco != null) audioManosCharco.Stop();
 
-        Debug.Log("🏁 Fin Escena 2 (60s): Jugador totalmente tragado en oscuridad absoluta.");
+        Debug.Log("🏁 Fin Escena 2 (60s): Jugador totalmente tragado por las manos en oscuridad absoluta.");
     }
 }

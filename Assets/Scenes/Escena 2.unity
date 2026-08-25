@@ -1122,6 +1122,8 @@ MonoBehaviour:
   volumeAmbiente: {fileID: 832575518}
   tiempoTotalEscena: 60
   charcoObjeto: {fileID: 1241893882}
+  cantidadCharcosManos: 5
+  radioDistribucionManos: 0.65
   puntoSpawnCharco: {fileID: 0}
   profundidadHundimiento: 2.8
   anguloMirarAbajo: 70
