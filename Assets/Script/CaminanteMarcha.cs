@@ -130,6 +130,14 @@ public class CaminanteMarcha : MonoBehaviour
         IniciarMarchaIndiferente(centroJugador, puntoObjetivo, vel, 1.8f, (Random.value > 0.5f) ? 1f : -1f);
     }
 
+    public void IniciarCaminataNormal(Vector3 puntoObjetivo, float vel)
+    {
+        if (Camera.main != null) centroJugador = Camera.main.transform;
+        float radio = Random.Range(0.65f, 1.15f);
+        float sentido = (Random.value > 0.5f) ? 1f : -1f;
+        IniciarMarchaIndiferente(centroJugador, puntoObjetivo, vel, radio, sentido);
+    }
+
     void Update()
     {
         if (centroJugador == null)

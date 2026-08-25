@@ -1065,9 +1065,14 @@ MonoBehaviour:
   npcPrefab: {fileID: 853666668}
   volumeAmbiente: {fileID: 832575518}
   reduccionAlturaCamara: 0.35
+  clipAmbienteNormal: {fileID: 8300000, guid: bf6c88a20e25e2947984be6197b8159e, type: 3}
+  clipAmbienteAbrumador: {fileID: 0}
+  clipLatidos: {fileID: 8300000, guid: 5f0a826e76165184ca25c97fe72b4ed1, type: 3}
+  clipMurmullos: {fileID: 0}
+  audioAmbienteNormal: {fileID: 0}
   audioAmbienteAbrumador: {fileID: 0}
-  audioMurmullos: {fileID: 0}
   audioLatidos: {fileID: 0}
+  audioMurmullos: {fileID: 0}
   filtroAmbiente: {fileID: 0}
   distanciaSpawn: 16
   radioMinimoCercano: 0.65

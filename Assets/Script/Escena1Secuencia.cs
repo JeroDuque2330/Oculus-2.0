@@ -25,17 +25,33 @@ public class Escena1Secuencia : MonoBehaviour
     [Tooltip("Reduce la altura de la cámara para que el usuario se sienta más pequeño frente a las sombras")]
     public float reduccionAlturaCamara = 0.35f;
 
-    [Header("Audio")]
-    [Tooltip("Sonidos de fondo abrumantes de la ciudad/entorno")]
+    [Header("Clips de Audio (Arrastra tus archivos de Audio .wav / .mp3 aquí)")]
+    [Tooltip("Audio del ambiente normal de la ciudad/calle (Suena del segundo 0 al 30)")]
+    public AudioClip clipAmbienteNormal;
+
+    [Tooltip("Audio del ambiente abrumador/filtrado (FiltroAmbiente.wav - Entra a partir del segundo 30)")]
+    public AudioClip clipAmbienteAbrumador;
+
+    [Tooltip("Audio de los latidos profundos del corazón (AudioLatidos.wav - Entra a partir del segundo 30)")]
+    public AudioClip clipLatidos;
+
+    [Tooltip("Clip de audio para murmullos o susurros (Opcional)")]
+    public AudioClip clipMurmullos;
+
+    [Header("AudioSources (Opcional - Se crean solos si no los asignas)")]
+    [Tooltip("Fuente de audio para el ambiente normal inicial")]
+    public AudioSource audioAmbienteNormal;
+
+    [Tooltip("Fuente de audio para el ambiente abrumador")]
     public AudioSource audioAmbienteAbrumador;
 
-    [Tooltip("Murmullos que entran a partir del segundo 30")]
-    public AudioSource audioMurmullos;
-
-    [Tooltip("Latidos profundos que entran a partir del segundo 30")]
+    [Tooltip("Fuente de audio para los latidos")]
     public AudioSource audioLatidos;
 
-    [Tooltip("Filtro pasa-bajos para el ambiente")]
+    [Tooltip("Fuente de audio para los murmullos")]
+    public AudioSource audioMurmullos;
+
+    [Tooltip("Filtro pasa-bajos para el ambiente (opcional)")]
     public AudioLowPassFilter filtroAmbiente;
 
     [Header("Configuración de Multitud")]
@@ -58,10 +74,11 @@ public class Escena1Secuencia : MonoBehaviour
     public int multitudInicial = 65;
     public int limiteMaximoNPCs = 85;
 
-    [Header("Rojo Carmesí (A partir del segundo 30)")]
-    public Color colorRojoCarmesi = new Color(0.85f, 0.05f, 0.05f);
+    [Header("Efectos Visuales (Segundo 30 al 42)")]
+    [Tooltip("Color rojo carmesí envolvente")]
+    public Color colorRojoCarmesi = new Color(0.85f, 0.05f, 0.05f, 1.0f);
 
-    [Header("Transición de Párpados (Entrecerrar Ojos)")]
+    [Header("Efecto de Párpados Somático (Final de Escena)")]
     [Tooltip("Activar el efecto visual de entrecerrar y cerrar los ojos antes de cambiar a Escena 2")]
     public bool activarEfectoParpados = true;
     [Tooltip("Duración más humana y pausada de la pesadez, pestañeo y cierre final de ojos (en segundos)")]
@@ -109,7 +126,7 @@ public class Escena1Secuencia : MonoBehaviour
         timer.mostrarHUD = false;
         timer.OcultarHUD();
 
-        // 1. Setup inicial: La escena empieza completamente NORMAL y limpia
+        // Setup inicial del Post-Processing: Escena normal y limpia
         if (volumeAmbiente != null && volumeAmbiente.profile != null)
         {
             volumeAmbiente.profile.TryGet(out colorAdjustments);
@@ -125,14 +142,77 @@ public class Escena1Secuencia : MonoBehaviour
 
         if (filtroAmbiente != null)
         {
-            filtroAmbiente.cutoffFrequency = 22000f; // Audio normal y nítido
+            filtroAmbiente.cutoffFrequency = 22000f;
         }
 
-        if (audioAmbienteAbrumador != null && !audioAmbienteAbrumador.isPlaying)
+        // 1. Configurar Audio de Ambiente Normal (0s - 30s)
+        if (audioAmbienteNormal == null && clipAmbienteNormal != null)
         {
-            audioAmbienteAbrumador.Play();
+            audioAmbienteNormal = gameObject.AddComponent<AudioSource>();
+            audioAmbienteNormal.clip = clipAmbienteNormal;
+            audioAmbienteNormal.loop = true;
+            audioAmbienteNormal.playOnAwake = false;
+            audioAmbienteNormal.spatialBlend = 0f;
+            audioAmbienteNormal.volume = 0.8f;
+        }
+        else if (audioAmbienteNormal != null && clipAmbienteNormal != null)
+        {
+            audioAmbienteNormal.clip = clipAmbienteNormal;
         }
 
+        // 2. Configurar Audio de Ambiente Abrumador (FiltroAmbiente.wav - 30s a 60s)
+        if (audioAmbienteAbrumador == null && clipAmbienteAbrumador != null)
+        {
+            audioAmbienteAbrumador = gameObject.AddComponent<AudioSource>();
+            audioAmbienteAbrumador.clip = clipAmbienteAbrumador;
+            audioAmbienteAbrumador.loop = true;
+            audioAmbienteAbrumador.playOnAwake = false;
+            audioAmbienteAbrumador.spatialBlend = 0f;
+            audioAmbienteAbrumador.volume = 0f; // Empieza en 0 y sube al segundo 30
+        }
+        else if (audioAmbienteAbrumador != null && clipAmbienteAbrumador != null)
+        {
+            audioAmbienteAbrumador.clip = clipAmbienteAbrumador;
+        }
+
+        // 3. Configurar Audio de Latidos (AudioLatidos.wav - 30s a 60s)
+        if (audioLatidos == null && clipLatidos != null)
+        {
+            audioLatidos = gameObject.AddComponent<AudioSource>();
+            audioLatidos.clip = clipLatidos;
+            audioLatidos.loop = true;
+            audioLatidos.playOnAwake = false;
+            audioLatidos.spatialBlend = 0f;
+            audioLatidos.volume = 0f;
+        }
+        else if (audioLatidos != null && clipLatidos != null)
+        {
+            audioLatidos.clip = clipLatidos;
+        }
+
+        // 4. Configurar Murmullos
+        if (audioMurmullos == null && clipMurmullos != null)
+        {
+            audioMurmullos = gameObject.AddComponent<AudioSource>();
+            audioMurmullos.clip = clipMurmullos;
+            audioMurmullos.loop = true;
+            audioMurmullos.playOnAwake = false;
+            audioMurmullos.spatialBlend = 0f;
+            audioMurmullos.volume = 0f;
+        }
+        else if (audioMurmullos != null && clipMurmullos != null)
+        {
+            audioMurmullos.clip = clipMurmullos;
+        }
+
+        // Iniciar reproducción del ambiente normal al arrancar
+        if (audioAmbienteNormal != null && !audioAmbienteNormal.isPlaying)
+        {
+            audioAmbienteNormal.volume = 0.8f;
+            audioAmbienteNormal.Play();
+        }
+
+        if (audioAmbienteAbrumador != null && audioAmbienteAbrumador.isPlaying) audioAmbienteAbrumador.Stop();
         if (audioMurmullos != null && audioMurmullos.isPlaying) audioMurmullos.Stop();
         if (audioLatidos != null && audioLatidos.isPlaying) audioLatidos.Stop();
 
@@ -162,7 +242,7 @@ public class Escena1Secuencia : MonoBehaviour
         RectTransform rectCanvas = overlayParpadosObj.GetComponent<RectTransform>();
         rectCanvas.sizeDelta = new Vector2(3.2f, 3.2f);
 
-        // Párpado Superior Humano (Hace el 70% del recorrido hacia abajo)
+        // Párpado Superior Humano
         GameObject superiorObj = new GameObject("ParpadoSuperior");
         superiorObj.transform.SetParent(overlayParpadosObj.transform, false);
         Image imgSuperior = superiorObj.AddComponent<Image>();
@@ -176,7 +256,7 @@ public class Escena1Secuencia : MonoBehaviour
         rectParpadoSuperior.sizeDelta = Vector2.zero;
         rectParpadoSuperior.localScale = new Vector3(1f, 0f, 1f);
 
-        // Párpado Inferior Humano (Hace el 30% del recorrido hacia arriba)
+        // Párpado Inferior Humano
         GameObject inferiorObj = new GameObject("ParpadoInferior");
         inferiorObj.transform.SetParent(overlayParpadosObj.transform, false);
         Image imgInferior = inferiorObj.AddComponent<Image>();
@@ -191,9 +271,6 @@ public class Escena1Secuencia : MonoBehaviour
         rectParpadoInferior.localScale = new Vector3(1f, 0f, 1f);
     }
 
-    /// <summary>
-    /// Establece el cierre de párpados: 0 = Ojos totalmente abiertos, 1 = Ojos totalmente cerrados.
-    /// </summary>
     public void SetCierreParpados(float cierre)
     {
         cierre = Mathf.Clamp01(cierre);
@@ -210,23 +287,24 @@ public class Escena1Secuencia : MonoBehaviour
     // =========================================================================
     // CRONOLOGÍA EXACTA ESCENA 1 (Total: 60 seg / 1:00 min)
     // 
-    // 1. (0s - 30s): Caminan normal y escena normal.
-    // 2. (30s - 42s): Se torna rojo del todo con latidos y murmullos.
+    // 1. (0s - 30s): Caminan normal, ambiente normal de ciudad.
+    // 2. (30s - 42s): Se torna rojo del todo, entra el ambiente abrumador y latidos.
     // 3. (42s - 50s): Se quedan quietos y mirando al personaje.
     // 4. (50s - 60s): Corren alrededor del personaje muy cerca y creciendo de tamaño.
-    //                 Al final (~5.5s), transición humana de pesadez y cierre de ojos.
-    // 5. (60s): Cierre de ojos 100% y transición inmediata a Escena 2.
+    //                 Al final (~5.5s), transición de pesadez y cierre de ojos.
+    // 5. (60s): Transición inmediata a Escena 2.
     // =========================================================================
     IEnumerator CronologiaEscena1()
     {
         // ---------------------------------------------------------------------
-        // FASE 1 (0s - 30s / 30 seg): CAMINAN NORMAL Y ESCENA NORMAL
+        // FASE 1 (0s - 30s / 30 seg): CAMINAN NORMAL Y AMBIENTE NORMAL
         // ---------------------------------------------------------------------
         yield return new WaitForSeconds(30.0f);
 
         // ---------------------------------------------------------------------
-        // FASE 2 (30s - 42s / 12 seg): SE TORNA ROJO DEL TODO
+        // FASE 2 (30s - 42s / 12 seg): SE TORNA ROJO DEL TODO, AMBIENTE ABRUMADOR Y LATIDOS
         // ---------------------------------------------------------------------
+        if (audioAmbienteAbrumador != null && !audioAmbienteAbrumador.isPlaying) audioAmbienteAbrumador.Play();
         if (audioMurmullos != null && !audioMurmullos.isPlaying) audioMurmullos.Play();
         if (audioLatidos != null && !audioLatidos.isPlaying) audioLatidos.Play();
 
@@ -249,11 +327,12 @@ public class Escena1Secuencia : MonoBehaviour
                 vignette.intensity.value = Mathf.Lerp(0f, 1.0f, factor);
             }
 
-            // Volumen de murmullos y latidos subiendo
-            if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.1f, 0.9f, factor);
+            // El ambiente normal se apaga mientras el abrumador y los latidos suben
+            if (audioAmbienteNormal != null) audioAmbienteNormal.volume = Mathf.Lerp(0.8f, 0.05f, factor);
+            if (audioAmbienteAbrumador != null) audioAmbienteAbrumador.volume = Mathf.Lerp(0.1f, 0.95f, factor);
             if (audioLatidos != null) audioLatidos.volume = Mathf.Lerp(0.2f, 1.0f, factor);
+            if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.1f, 0.9f, factor);
 
-            // El ambiente de la ciudad se va ahogando
             if (filtroAmbiente != null)
             {
                 filtroAmbiente.cutoffFrequency = Mathf.Lerp(22000f, 600f, factor);
@@ -269,7 +348,7 @@ public class Escena1Secuencia : MonoBehaviour
         // ---------------------------------------------------------------------
         // FASE 3 (42s - 50s / 8 seg): SE QUEDAN TOTALMENTE QUIETOS
         // ---------------------------------------------------------------------
-        permitirSpawns = false; // Detener nuevos spawns
+        permitirSpawns = false;
         for (int i = 0; i < listaNPCs.Count; i++)
         {
             CaminanteMarcha npc = listaNPCs[i];
@@ -296,11 +375,11 @@ public class Escena1Secuencia : MonoBehaviour
             }
         }
 
-        // Carrera libre antes de que los párpados empiecen a pesar
+        // Carrera libre antes del cierre de ojos
         float tiempoCarreraLibre = Mathf.Max(1.0f, 10.0f - duracionEfectoParpados);
         yield return new WaitForSeconds(tiempoCarreraLibre);
 
-        // Efecto visual somático de pestañeo humano y cierre de ojos
+        // Efecto visual de pestañeo humano y cierre de ojos
         if (activarEfectoParpados)
         {
             yield return StartCoroutine(SecuenciaEntrecerrarOjos(duracionEfectoParpados));
@@ -326,113 +405,68 @@ public class Escena1Secuencia : MonoBehaviour
     IEnumerator SecuenciaEntrecerrarOjos(float duracion)
     {
         float t = 0f;
+        float inicioPesadez = duracion * 0.40f;
+
         while (t < duracion)
         {
             t += Time.deltaTime;
-            float factor = Mathf.Clamp01(t / duracion);
 
-            float cierre = 0f;
-            // Micro-temblor involuntario por estrés ocular
-            float temblor = (Mathf.PerlinNoise(Time.time * 28f, 0f) - 0.5f) * 0.032f;
-
-            if (factor < 0.20f)
+            if (t < inicioPesadez)
             {
-                // 1. Pesadez inicial: Los ojos se entrecierran ligeramente (35%)
-                float subT = factor / 0.20f;
-                cierre = Mathf.Lerp(0f, 0.35f, Mathf.SmoothStep(0f, 1f, subT));
-            }
-            else if (factor < 0.44f)
-            {
-                // 2. Primer pestañeo humano: Caída rápida (88%) y apertura perezosa y lenta (30%)
-                float subT = (factor - 0.20f) / 0.24f;
-                if (subT < 0.35f)
-                {
-                    float cT = subT / 0.35f;
-                    cierre = Mathf.Lerp(0.35f, 0.88f, Mathf.SmoothStep(0f, 1f, cT));
-                }
-                else
-                {
-                    float oT = (subT - 0.35f) / 0.65f;
-                    cierre = Mathf.Lerp(0.88f, 0.30f, Mathf.SmoothStep(0f, 1f, oT));
-                }
-            }
-            else if (factor < 0.70f)
-            {
-                // 3. Segundo pestañeo pesado: Casi cierre (96%), micro-pausa de cansancio y reapertura difícil (50%)
-                float subT = (factor - 0.44f) / 0.26f;
-                if (subT < 0.30f)
-                {
-                    float cT = subT / 0.30f;
-                    cierre = Mathf.Lerp(0.30f, 0.96f, Mathf.SmoothStep(0f, 1f, cT));
-                }
-                else if (subT < 0.45f)
-                {
-                    cierre = 0.96f; // Ojos casi cerrados por agotamiento
-                }
-                else
-                {
-                    float oT = (subT - 0.45f) / 0.55f;
-                    cierre = Mathf.Lerp(0.96f, 0.50f, Mathf.SmoothStep(0f, 1f, oT));
-                }
+                float factorPre = t / inicioPesadez;
+                float microParpadeo = Mathf.Sin(t * 7.5f);
+                float pesadezInicial = (microParpadeo > 0.82f) ? 0.22f : 0f;
+                SetCierreParpados(Mathf.Lerp(0f, 0.25f, factorPre) + pesadezInicial);
             }
             else
             {
-                // 4. Caída final lenta y pesada: Rendición total hacia el negro absoluto (100%)
-                float subT = (factor - 0.70f) / 0.30f;
-                cierre = Mathf.Lerp(0.50f, 1.0f, Mathf.SmoothStep(0f, 1f, subT));
-            }
-
-            // Aplicar el micro-temblor orgánico en estados intermedios
-            if (cierre > 0.05f && cierre < 0.98f)
-            {
-                cierre = Mathf.Clamp01(cierre + temblor);
-            }
-
-            SetCierreParpados(cierre);
-
-            // Ahogar progresivamente los audios en sincronía con la pérdida de conciencia
-            if (factor > 0.40f)
-            {
-                float factorAudio = (factor - 0.40f) / 0.60f;
-                if (audioMurmullos != null) audioMurmullos.volume = Mathf.Lerp(0.9f, 0.05f, factorAudio);
-                if (audioLatidos != null) audioLatidos.volume = Mathf.Lerp(1.0f, 0.15f, factorAudio);
-                if (filtroAmbiente != null) filtroAmbiente.cutoffFrequency = Mathf.Lerp(600f, 120f, factorAudio);
+                float progresoCierre = Mathf.Clamp01((t - inicioPesadez) / (duracion - inicioPesadez));
+                float curvaCierre = Mathf.SmoothStep(0.25f, 1.0f, progresoCierre);
+                float luchaParpadeo = Mathf.Sin(t * 12.0f) * 0.08f * (1.0f - progresoCierre);
+                SetCierreParpados(Mathf.Clamp01(curvaCierre + luchaParpadeo));
             }
 
             yield return null;
         }
 
-        SetCierreParpados(1.0f); // Ojos 100% cerrados
-        yield return new WaitForSeconds(0.3f);
+        SetCierreParpados(1.0f);
     }
 
     IEnumerator GeneradorContinuo()
     {
         while (permitirSpawns)
         {
+            listaNPCs.RemoveAll(item => item == null);
+
             if (listaNPCs.Count < limiteMaximoNPCs)
             {
                 SpawnearNPC(distanciaSpawn);
             }
+
             yield return new WaitForSeconds(tiempoEntreSpawns);
         }
     }
 
     void SpawnearNPC(float distancia)
     {
-        if (npcPrefab == null || jugadorVR == null) return;
+        if (npcPrefab == null) return;
+
+        Vector3 posCentro = (jugadorVR != null) ? jugadorVR.position : Vector3.zero;
 
         float angulo = Random.Range(0f, 360f) * Mathf.Deg2Rad;
-        Vector3 offset = new Vector3(Mathf.Sin(angulo) * distancia, 0, Mathf.Cos(angulo) * distancia);
-        Vector3 posicionSpawn = new Vector3(jugadorVR.position.x + offset.x, npcPrefab.transform.position.y, jugadorVR.position.z + offset.z);
+        Vector3 posSpawn = posCentro + new Vector3(Mathf.Cos(angulo) * distancia, 0, Mathf.Sin(angulo) * distancia);
 
-        float radioTangente = Random.Range(1.8f, 4.5f);
-        float ladoSigno = (Random.value > 0.5f) ? 1f : -1f;
-        Vector3 perpendicular = new Vector3(-offset.z, 0, offset.x).normalized * (radioTangente * ladoSigno);
-        Vector3 puntoDestino = jugadorVR.position + perpendicular;
+        Terrain terreno = Terrain.activeTerrain ?? FindFirstObjectByType<Terrain>();
+        if (terreno != null)
+        {
+            posSpawn.y = terreno.SampleHeight(posSpawn) + terreno.transform.position.y;
+        }
+        else
+        {
+            posSpawn.y = posCentro.y;
+        }
 
-        GameObject nuevoNPC = Instantiate(npcPrefab, posicionSpawn, Quaternion.identity);
-        nuevoNPC.SetActive(true);
+        GameObject nuevoNPC = Instantiate(npcPrefab, posSpawn, Quaternion.identity);
 
         CaminanteMarcha caminante = nuevoNPC.GetComponent<CaminanteMarcha>();
         if (caminante == null)
@@ -440,10 +474,9 @@ public class Escena1Secuencia : MonoBehaviour
             caminante = nuevoNPC.AddComponent<CaminanteMarcha>();
         }
 
-        float velocidad = Random.Range(velocidadCaminarMin, velocidadCaminarMax);
-        float radioCercano = Random.Range(radioMinimoCercano, radioMaximoCercano);
-        float sentido = (Random.value > 0.5f) ? 1f : -1f;
+        float velCaminar = Random.Range(velocidadCaminarMin, velocidadCaminarMax);
+        caminante.IniciarCaminataNormal(posCentro, velCaminar);
 
-        caminante.IniciarMarchaIndiferente(jugadorVR, puntoDestino, velocidad, radioCercano, sentido);
+        listaNPCs.Add(caminante);
     }
 }

@@ -35,7 +35,14 @@ public class Escena2Secuencia : MonoBehaviour
     [Tooltip("Ángulo de inclinación hacia abajo para ver el suelo y las manos")]
     public float anguloMirarAbajo = 65.0f;
 
-    [Header("Audio")]
+    [Header("Clips de Audio (Arrastra tus archivos de Audio .wav / .mp3 aquí)")]
+    [Tooltip("Clip de audio para las manos emergiendo del charco (Audio Manos Charco.wav)")]
+    public AudioClip clipManosCharco;
+
+    [Tooltip("Clip de audio para la música y estática ambiental")]
+    public AudioClip clipMusicaEstatica;
+
+    [Header("AudioSources (Opcional - Se crean solos si no los asignas)")]
     [Tooltip("Música y estática ambiental que abruma")]
     public AudioSource audioMusicaEstatica;
 
@@ -174,6 +181,35 @@ public class Escena2Secuencia : MonoBehaviour
                 vignette.smoothness.overrideState = true;
                 vignette.smoothness.value = 0.2f;
             }
+        }
+
+        // Configuración automática de AudioSources a partir de los clips
+        if (audioManosCharco == null && clipManosCharco != null)
+        {
+            audioManosCharco = gameObject.AddComponent<AudioSource>();
+            audioManosCharco.clip = clipManosCharco;
+            audioManosCharco.loop = true;
+            audioManosCharco.playOnAwake = false;
+            audioManosCharco.spatialBlend = 0f;
+            audioManosCharco.volume = 1f;
+        }
+        else if (audioManosCharco != null && clipManosCharco != null)
+        {
+            audioManosCharco.clip = clipManosCharco;
+        }
+
+        if (audioMusicaEstatica == null && clipMusicaEstatica != null)
+        {
+            audioMusicaEstatica = gameObject.AddComponent<AudioSource>();
+            audioMusicaEstatica.clip = clipMusicaEstatica;
+            audioMusicaEstatica.loop = true;
+            audioMusicaEstatica.playOnAwake = false;
+            audioMusicaEstatica.spatialBlend = 0f;
+            audioMusicaEstatica.volume = 0.6f;
+        }
+        else if (audioMusicaEstatica != null && clipMusicaEstatica != null)
+        {
+            audioMusicaEstatica.clip = clipMusicaEstatica;
         }
 
         // Timer oculto
